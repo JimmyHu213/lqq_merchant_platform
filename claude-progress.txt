@@ -1,0 +1,58 @@
+# CRMEB Migration Progress Tracker
+# Updated by Generator agent after each task completion
+# Format: [STATUS] Phase.Task - Description (Date)
+# STATUS: PENDING | IN_PROGRESS | DONE | BLOCKED | REJECTED
+
+## Phase 1: Environment Setup (Day 1-2)
+[PENDING] 1.1 - Docker/Cloud environment setup (PHP + Swoole + MySQL + Redis)
+[PENDING] 1.2 - Import CRMEB crmeb_merchant.sql (165 tables)
+[PENDING] 1.3 - Configure .env (database, Redis, app settings)
+[PENDING] 1.4 - Verify CRMEB admin panel (system.html) accessible
+[PENDING] 1.5 - Verify merchant panel (mer.html) accessible
+[PENDING] 1.6 - Configure WeChat mini-program AppID + payment params
+[PENDING] 1.7 - Test basic flow: register → browse → order → pay
+
+## Phase 2: Custom Module Development (Day 3-6)
+[PENDING] 2.1 - Auto lock-in mechanism (skId) - extend eb_user, modify payment callback
+[PENDING] 2.2 - WeChat profit-sharing API integration
+[PENDING] 2.3 - Multi-party profit calculation rules
+[PENDING] 2.4 - Promoter (tgy) role system
+[PENDING] 2.5 - LBS nearby merchant search with distance sorting
+
+## Phase 3: Data Migration (Day 7-8)
+[PENDING] 3.1 - Generate field mapping table (mlqApi → CRMEB)
+[PENDING] 3.2 - Write migration SQL scripts
+[PENDING] 3.3 - Migrate user data (including wechat openid/unionid)
+[PENDING] 3.4 - Migrate merchant data
+[PENDING] 3.5 - Migrate order history
+[PENDING] 3.6 - Migrate coupon data
+[PENDING] 3.7 - Verify data consistency
+
+## Phase 4: Vue 3 Frontend (Day 9-16)
+[PENDING] 4.1 - Tech stack setup (Vue 3 + UniApp)
+[PENDING] 4.2 - Homepage (banners, categories, nearby merchants)
+[PENDING] 4.3 - Merchant module (search, detail, goods, reviews)
+[PENDING] 4.4 - Order module (checkout, payment, order list, verification)
+[PENDING] 4.5 - Coupon module (receive, use, transfer)
+[PENDING] 4.6 - Personal center (wallet, points, favorites, addresses)
+[PENDING] 4.7 - Promoter pages (merchant management, commission stats)
+[PENDING] 4.8 - UI/UX optimization
+
+## Phase 5: Integration Testing (Day 17-19)
+[PENDING] 5.1 - WeChat login integration
+[PENDING] 5.2 - Payment full flow (order → pay → callback → profit-sharing)
+[PENDING] 5.3 - Lock-in flow (first order → auto-bind → profit verification)
+[PENDING] 5.4 - Promoter flow (bind merchant → user order → commission)
+[PENDING] 5.5 - Admin panel verification
+[PENDING] 5.6 - Edge case testing
+
+## Phase 6: Deployment (Day 20-22)
+[PENDING] 6.1 - Production server setup
+[PENDING] 6.2 - SSL + domain configuration
+[PENDING] 6.3 - WeChat payment callback URL update
+[PENDING] 6.4 - Production data migration
+[PENDING] 6.5 - Canary release → full rollout
+
+---
+## Session Log
+# [DATE] [AGENT] - Activity description

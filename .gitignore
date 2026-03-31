@@ -1,0 +1,38 @@
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Dependencies
+vendor/
+node_modules/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Runtime
+runtime/
+CRMEB_MER-v3.4/runtime/
+
+# Logs
+*.log
+
+# Docker volumes (managed by Docker)
+mysql-data/
+redis-data/
+
+# Compiled assets (keep source, ignore builds)
+CRMEB_MER-v3.4/public/admin/
+CRMEB_MER-v3.4/public/mer/
+CRMEB_MER-v3.4/public/screen/
+
+# Large reference files (optional - uncomment to exclude from git)
+# doc/*.sql
+# 其他资料/
