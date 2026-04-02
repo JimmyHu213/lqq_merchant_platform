@@ -1,58 +1,212 @@
-# CRMEB Migration Progress Tracker
+# 溜圈圈迁移进度 (mlqApi → JAVA-MER 2.2)
 # Updated by Generator agent after each task completion
-# Format: [STATUS] Phase.Task - Description (Date)
 # STATUS: PENDING | IN_PROGRESS | DONE | BLOCKED | REJECTED
 
-## Phase 1: Environment Setup (Day 1-2)
-[PENDING] 1.1 - Docker/Cloud environment setup (PHP + Swoole + MySQL + Redis)
-[PENDING] 1.2 - Import CRMEB crmeb_merchant.sql (165 tables)
-[PENDING] 1.3 - Configure .env (database, Redis, app settings)
-[PENDING] 1.4 - Verify CRMEB admin panel (system.html) accessible
-[PENDING] 1.5 - Verify merchant panel (mer.html) accessible
-[PENDING] 1.6 - Configure WeChat mini-program AppID + payment params
-[PENDING] 1.7 - Test basic flow: register → browse → order → pay
+============================================================
+## 功能模块映射总览
+============================================================
 
-## Phase 2: Custom Module Development (Day 3-6)
-[PENDING] 2.1 - Auto lock-in mechanism (skId) - extend eb_user, modify payment callback
-[PENDING] 2.2 - WeChat profit-sharing API integration
-[PENDING] 2.3 - Multi-party profit calculation rules
-[PENDING] 2.4 - Promoter (tgy) role system
-[PENDING] 2.5 - LBS nearby merchant search with distance sorting
+### A. 直接移植 — JAVA-MER 已有对应功能，配置/适配即可 (12个模块)
 
-## Phase 3: Data Migration (Day 7-8)
-[PENDING] 3.1 - Generate field mapping table (mlqApi → CRMEB)
-[PENDING] 3.2 - Write migration SQL scripts
-[PENDING] 3.3 - Migrate user data (including wechat openid/unionid)
-[PENDING] 3.4 - Migrate merchant data
-[PENDING] 3.5 - Migrate order history
-[PENDING] 3.6 - Migrate coupon data
-[PENDING] 3.7 - Verify data consistency
+[PENDING] A1 - 用户管理 & 微信小程序登录
+  mlqApi: WxAuthController (login_by_weixin, bdp, uxi)
+  MER:    LoginController (wechat/routine, register/binding/phone)
+  工作量: 小 — 配置小程序 AppID/Secret，字段映射
 
-## Phase 4: Vue 3 Frontend (Day 9-16)
-[PENDING] 4.1 - Tech stack setup (Vue 3 + UniApp)
-[PENDING] 4.2 - Homepage (banners, categories, nearby merchants)
-[PENDING] 4.3 - Merchant module (search, detail, goods, reviews)
-[PENDING] 4.4 - Order module (checkout, payment, order list, verification)
-[PENDING] 4.5 - Coupon module (receive, use, transfer)
-[PENDING] 4.6 - Personal center (wallet, points, favorites, addresses)
-[PENDING] 4.7 - Promoter pages (merchant management, commission stats)
-[PENDING] 4.8 - UI/UX optimization
+[PENDING] A2 - 商户管理
+  mlqApi: SShopController (add, edit) + Shop.java (KYC 17字段)
+  MER:    MerchantController + MerchantApplyService + MerchantInfoController
+  工作量: 中 — 需扩展 Merchant 实体增加溜圈圈特有字段 (fszk, qyzk, isfz, submid, fwsmid 等)
 
-## Phase 5: Integration Testing (Day 17-19)
-[PENDING] 5.1 - WeChat login integration
-[PENDING] 5.2 - Payment full flow (order → pay → callback → profit-sharing)
-[PENDING] 5.3 - Lock-in flow (first order → auto-bind → profit verification)
-[PENDING] 5.4 - Promoter flow (bind merchant → user order → commission)
-[PENDING] 5.5 - Admin panel verification
-[PENDING] 5.6 - Edge case testing
+[PENDING] A3 - 商品管理
+  mlqApi: GoodsController (list, sbi, gc, adc)
+  MER:    ProductController + ProductCategoryController + ProductService
+  工作量: 小 — 数据迁移+分类适配，JAVA-MER 商品功能更完善
 
-## Phase 6: Deployment (Day 20-22)
-[PENDING] 6.1 - Production server setup
-[PENDING] 6.2 - SSL + domain configuration
-[PENDING] 6.3 - WeChat payment callback URL update
-[PENDING] 6.4 - Production data migration
-[PENDING] 6.5 - Canary release → full rollout
+[PENDING] A4 - 订单管理
+  mlqApi: WxOrderController + ShopXxOrderController (状态码: 101→401)
+  MER:    OrderController + OrderService (完整订单生命周期)
+  工作量: 中 — 需做订单状态码映射，扩展核销逻辑 (见 B5)
+  映射: 101→待支付, 201→已支付, 301→已发货, 401→已收货, 102/103→已取消, 202/203→退款
+
+[PENDING] A5 - 微信支付
+  mlqApi: PayCommon + PayUtil (微信统一下单, JSAPI)
+  MER:    PayController + WechatPayService + WechatPayCallbackService
+  工作量: 小 — JAVA-MER 已有完整微信支付 V2/V3，配置商户号即可
+
+[PENDING] A6 - 优惠券系统
+  mlqApi: BuyerYhqController (sgy, gyo, gybb)
+  MER:    CouponController + CouponService + CouponUserService
+  工作量: 小 — 基础领取/使用功能一致。优惠券转赠需扩展 (见 B6)
+
+[PENDING] A7 - 充值/钱包
+  mlqApi: UserRechargeService (recharge CZ- prefix)
+  MER:    RechargeController + RechargeOrderService + UserBalanceRecordService
+  工作量: 小 — 直接使用 JAVA-MER 充值模块
+
+[PENDING] A8 - 用户评论
+  mlqApi: UserPl (ap, gbs, pf评分, bq标签)
+  MER:    ProductReplyService + OrderController (reply/product)
+  工作量: 小 — JAVA-MER 评论功能更完善
+
+[PENDING] A9 - 地址管理
+  mlqApi: BuyerYhqController (gabu, add, update, del)
+  MER:    UserAddressService + UserAddressController
+  工作量: 小 — 直接使用
+
+[PENDING] A10 - 文件上传
+  mlqApi: 本地文件系统 (/opt/img/) + CDN
+  MER:    UploadService + OssService/CosService (多云存储)
+  工作量: 小 — JAVA-MER 支持 OSS/COS/OBS 等，功能更强
+
+[PENDING] A11 - 系统配置 & 通知
+  mlqApi: SysCommController + SmsUtils
+  MER:    SystemConfigService + SmsService + SystemNotificationService
+  工作量: 小 — 直接使用
+
+[PENDING] A12 - 员工管理
+  mlqApi: ShopTempController (list, add, edit, del)
+  MER:    MerchantEmployeeService + MerchantEmployeeController
+  工作量: 小 — 直接使用
+
+---
+
+### B. 需要独立开发 — JAVA-MER 无对应功能，需新建 (7个模块)
+
+[PENDING] B1 - 自动锁客 (skId) ★核心
+  说明: 用户首次在某商铺消费后自动绑定为该商铺客户
+  mlqApi: WxAuthController.yu() + Order 支付回调中 skId 绑定逻辑
+  涉及: User 实体增加 lockMerId/lockTime 字段, 支付回调扩展
+  工作量: 中
+
+[PENDING] B2 - 微信多方分账 (profitsharing) ★核心
+  说明: 支付成功后按规则将资金分配给多方 (锁客商户+推荐人+平台)
+  mlqApi: PayCommon.fz() + DsTask.mdFz() + SysFzJl 分账记录
+  公式: 基础金额 = goodsPrice × (1 - fszk)
+        锁客商铺 = 基础金额 × skzk%
+        推荐人 = 基础金额 × 佣金%
+        平台 = 剩余
+  涉及: 对接 weixin-java-pay profitsharing API, 新建分账记录表, 异步定时任务
+  注意: JAVA-MER 有 OrderProfitSharingService 但是内部佣金分配，非微信分账API
+  工作量: 大 ★需人工审核金额计算
+
+[PENDING] B3 - 推广员 (tgy) 角色 ★核心
+  说明: 独立于普通分销的角色，userId<60000 为推广员，管理区域商铺、佣金统计
+  mlqApi: WxAuthController (tjt佣金统计, gtc佣金记录, gts推广员商铺, gsc商铺数)
+  涉及: 推广员-商铺绑定关系表, 区域佣金统计, 推广员专属后台页面
+  注意: JAVA-MER 有 RetailStore 分销但不等同于溜圈圈的推广员机制
+  工作量: 大
+
+[PENDING] B4 - LBS 附近商铺搜索
+  说明: 按距离搜索附近商铺，支持 0.5km-10km 筛选
+  mlqApi: SShopController.xss() + WxHomeUtilsController (jl距离选项, ga获取POI)
+  涉及: Haversine 距离计算, MySQL 空间查询或 Java 层计算, 距离排序
+  注意: JAVA-MER 有商户地址但无距离搜索功能
+  工作量: 中
+
+[PENDING] B5 - 线下核销 (扫码验证)
+  说明: 到店消费后通过扫码完成订单核销
+  mlqApi: ShopXxOrderController.oh() + WxOrderController (xmh扫码核销, goe订单二维码)
+  涉及: 订单核销状态扩展 (ishx, hxid), 核销码生成, 商户端扫码接口
+  注意: JAVA-MER 订单流程为线上发货模式，需增加到店核销模式
+  工作量: 中
+
+[PENDING] B6 - 优惠券转赠
+  说明: 用户间优惠券转移，mlqApi 用 zzrId 追踪转赠来源
+  mlqApi: WxBrandController.zsq() + BuyerYhq.zzrId 字段
+  涉及: StoreCouponUser 扩展转赠字段, 新增转赠接口
+  工作量: 小
+
+[PENDING] B7 - 抽奖系统
+  说明: 按期抽奖，用户消耗积分参与，自动开奖
+  mlqApi: WxOrderController (cj参与, ucj更新, gcbu记录) + UserCjlist 模型
+  涉及: 新建抽奖活动表+参与记录表, 开奖定时任务, 积分扣减
+  注意: JAVA-MER 有秒杀/拼团但无抽奖
+  工作量: 中
+
+---
+
+### C. JAVA-MER 额外功能 — mlqApi 没有但可直接使用的
+
+  - 秒杀活动 (SeckillService) — 限时抢购
+  - 拼团活动 (GroupBuyActivityService) — 多人团购
+  - 社区笔记 (CommunityNotesService) — 类小红书内容
+  - 付费会员 (PaidMemberService) — 会员卡/等级
+  - 签到系统 (SignService) — 每日签到
+  - 积分商城 (IntegralShoppingService) — 积分兑换商品
+  - 退款售后 (RefundOrderService) — 完整退款流程
+  - 文章管理 (ArticleService) — 内容/资讯
+  - 页面装修 (PageDiyService) — 可视化页面编辑器
+  - 购物车 (CartService) — mlqApi 无购物车，直接下单
+  - 多云存储 (OSS/COS/OBS) — mlqApi 仅本地存储
+  - 物流追踪 (LogisticService) — 快递跟踪
+  - 微信直播 (WechatLiveRoomService) — 直播卖货
+
+============================================================
+## 开发阶段
+============================================================
+
+## Phase 0: 项目初始化 ✅
+[DONE] 0.1 - Git 仓库初始化、团队配置
+[DONE] 0.2 - CLAUDE.md 项目规范
+
+## Phase 1: 环境搭建 ✅
+[DONE] 1.1 - Docker 配置 (MySQL 8.0 + Redis 6)
+[DONE] 1.2 - 导入 JAVA-MER 数据库 (178张表)
+[DONE] 1.3 - 修复 Java 11 兼容性 (BASE64Decoder → java.util.Base64)
+[DONE] 1.4 - Maven 编译通过，项目启动成功 (端口 20800)
+[DONE] 1.5 - Knife4j API 文档可访问 (localhost:20800/doc.html)
+
+## Phase 2: 直接移植模块 (A1-A12)
+[DONE] 2.1 - 商户实体扩展 — Merchant.java 增加 24 个 LQQ 字段 (2026-04-03)
+  文件: crmeb-common/.../model/merchant/Merchant.java
+  SQL:  sql/migrations/001_extend_merchant_for_lqq.sql
+[DONE] 2.2 - 订单状态码映射文档 (2026-04-03)
+  文件: sql/migrations/002_order_status_mapping.sql
+  映射: 101→0, 102→9(cancel=2), 103→9(cancel=1), 201→1(paid=1), 301→4, 401→5
+[DONE] 2.3 - 数据迁移SQL: 用户 t_customer_buyer → eb_user + eb_wechat_user (2026-04-03)
+  文件: sql/migrations/003_data_migration_users.sql
+  含: ID映射表(lqq_id_mapping), 微信绑定迁移, 推荐人关系迁移
+[DONE] 2.4 - 数据迁移SQL: 商户 t_business_shop → eb_merchant + eb_merchant_info (2026-04-03)
+  文件: sql/migrations/004_data_migration_merchants.sql
+  含: 基础信息+LQQ扩展字段+结算信息迁移
+[DONE] 2.5 - 数据迁移SQL: 订单 t_customer_order → eb_order (2026-04-03)
+  文件: sql/migrations/005_data_migration_orders.sql
+  含: 状态码映射转换, 支付信息, 退款/取消状态
+[DONE] 2.6 - 数据迁移SQL: 商品+优惠券 (2026-04-03)
+  文件: sql/migrations/006_data_migration_products_coupons.sql
+  含: t_business_shop_goods→eb_product, t_customer_buyer_yhq→eb_coupon_user
+[DONE] 2.7 - 编译验证: mvn clean install BUILD SUCCESS (2026-04-03)
+[PENDING] 2.8 - 微信小程序配置 (AppID/Secret/支付商户号) — 需用户提供实际配置值
+
+## Phase 3: 自定义模块开发 (B1-B7)
+[PENDING] 3.1 - 自动锁客 (B1)
+[PENDING] 3.2 - 微信多方分账 (B2) ★需人工审核
+[PENDING] 3.3 - 推广员角色 (B3)
+[PENDING] 3.4 - LBS 附近搜索 (B4)
+[PENDING] 3.5 - 线下核销 (B5)
+[PENDING] 3.6 - 优惠券转赠 (B6)
+[PENDING] 3.7 - 抽奖系统 (B7)
+
+## Phase 4: 前端适配
+[PENDING] 4.1 - mer_uniapp 移动端适配
+[PENDING] 4.2 - mer_mer_admin 商户后台适配
+[PENDING] 4.3 - mer_plat_admin 平台后台适配
+
+## Phase 5: 集成测试
+[PENDING] 5.1 - 微信登录全链路
+[PENDING] 5.2 - 支付→分账全链路
+[PENDING] 5.3 - 锁客→分润全链路
+[PENDING] 5.4 - 推广员→佣金全链路
+
+## Phase 6: 部署上线
+[PENDING] 6.1 - 生产环境配置
+[PENDING] 6.2 - 数据迁移
+[PENDING] 6.3 - 灰度发布
 
 ---
 ## Session Log
-# [DATE] [AGENT] - Activity description
+# [2026-03-31] [Generator] - Phase 0 初始化项目
+# [2026-04-02] [Generator] - Phase 1 环境搭建完成 (Docker + MySQL + Redis + Java 11 兼容)
+# [2026-04-03] [Planner] - 完成 mlqApi 全模块扫描，功能映射分类完成 (12直接移植 + 7独立开发)
+# [2026-04-03] [Generator] - Phase 2 完成: Merchant实体扩展(24字段), 状态码映射, 6个迁移SQL脚本, 编译通过
