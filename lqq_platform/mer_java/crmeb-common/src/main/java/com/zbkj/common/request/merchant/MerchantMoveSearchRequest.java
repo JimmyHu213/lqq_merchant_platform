@@ -40,4 +40,11 @@ public class MerchantMoveSearchRequest implements Serializable {
     @ApiModelProperty(value = "是否自营：0-非自营，1-自营")
     private Boolean isSelf;
 
+    // [LQQ-迁移] LBS 附近搜索
+    @ApiModelProperty(value = "用户纬度")
+    private String latitude;
+
+    @ApiModelProperty(value = "用户经度")
+    private String longitude;
+
 }
