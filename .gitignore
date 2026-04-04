@@ -1,3 +1,20 @@
+# ========== 主库: JAVA-MER (lqq_platform) ==========
+# 只追踪主库代码，其他参考文档忽略
+
+# 参考项目 (只读，不追踪)
+mlqApi/
+mlqAdmin/
+其他资料/
+doc/
+lzweb/
+
+# 旧 PHP 项目 (已废弃)
+CRMEB_MER-v3.4/
+docker/php/
+docker/nginx/
+
+# ========== 通用忽略 ==========
+
 # Environment
 .env
 .env.local
@@ -17,22 +34,18 @@ node_modules/
 .DS_Store
 Thumbs.db
 
-# Runtime
-runtime/
-CRMEB_MER-v3.4/runtime/
-
 # Logs
 *.log
 
-# Docker volumes (managed by Docker)
+# Docker volumes
 mysql-data/
 redis-data/
 
-# Compiled assets (keep source, ignore builds)
-CRMEB_MER-v3.4/public/admin/
-CRMEB_MER-v3.4/public/mer/
-CRMEB_MER-v3.4/public/screen/
+# Java build output
+**/target/
 
-# Large reference files (optional - uncomment to exclude from git)
-# doc/*.sql
-# 其他资料/
+# Maven wrapper (可选)
+.mvn/
+
+# Compiled frontend assets
+**/dist/

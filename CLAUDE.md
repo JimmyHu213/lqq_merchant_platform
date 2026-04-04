@@ -6,16 +6,16 @@
 前端使用 JAVA-MER 自带的 Vue 管理后台 + UniApp 移动端。
 
 ## 代码位置
-- **开发目标 (JAVA-MER，直接在此修改)**: `./JAVA-MER-2.2_20260225/mer_java/`
-- **商户管理后台前端**: `./JAVA-MER-2.2_20260225/mer_mer_admin/` (Vue + Element UI)
-- **平台管理后台前端**: `./JAVA-MER-2.2_20260225/mer_plat_admin/` (Vue + Element UI)
-- **移动端前端**: `./JAVA-MER-2.2_20260225/mer_uniapp/` (UniApp 跨平台)
+- **开发目标 (JAVA-MER，直接在此修改)**: `./lqq_platform/mer_java/`
+- **商户管理后台前端**: `./lqq_platform/mer_mer_admin/` (Vue + Element UI)
+- **平台管理后台前端**: `./lqq_platform/mer_plat_admin/` (Vue + Element UI)
+- **移动端前端**: `./lqq_platform/mer_uniapp/` (UniApp 跨平台)
 - **业务逻辑参考 (mlqApi，只读)**: `./mlqApi/`
 - **旧管理后台参考 (mlqAdmin，只读)**: `./mlqAdmin/`
 - **其他参考资料（只读）**: `./其他资料/`、`./doc/`
 
 ## 开发方式
-**直接在 JAVA-MER-2.2_20260225/mer_java/ 目录上开发**。在 JAVA-MER 框架基础上：
+**直接在 lqq_platform/mer_java/ 目录上开发**。在 JAVA-MER 框架基础上：
 - 新增文件：添加自定义模块（锁客、分账、推广员、LBS）
 - 修改已有文件：在 JAVA-MER 已有的 Controller/Service/DAO 中扩展功能
 - 新增数据库字段：在已有表上 ALTER TABLE 增加字段
@@ -137,7 +137,7 @@ mer_java/
 | user_recharge_order | UserRecharge | 充值 |
 
 ## 编码规范
-- 所有后端开发在 `./JAVA-MER-2.2_20260225/mer_java/` 目录内完成
+- 所有后端开发在 `./lqq_platform/mer_java/` 目录内完成
 - Java 代码遵循 JAVA-MER 已有模式 (MyBatis Plus)，不引入新的设计模式
 - 新增 Entity 放在 `crmeb-common/src/main/java/com/zbkj/common/model/{模块}/` 下
 - 新增 DAO 放在 `crmeb-service/src/main/java/com/zbkj/service/dao/` 下，继承 `BaseMapper<T>`
