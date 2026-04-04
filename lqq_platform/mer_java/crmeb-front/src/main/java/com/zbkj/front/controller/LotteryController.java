@@ -56,4 +56,12 @@ public class LotteryController {
     public CommonResult<CommonPage<LotteryRecord>> getMyRecords(@ModelAttribute PageParamRequest pageParamRequest) {
         return CommonResult.success(CommonPage.restPage(lotteryRecordService.getMyRecords(pageParamRequest)));
     }
+
+    // [LQQ-迁移] 当前期参与者列表
+    @ApiOperation(value = "当前期参与者列表")
+    @RequestMapping(value = "/participants/{activityId}", method = RequestMethod.GET)
+    public CommonResult<CommonPage<LotteryRecord>> getParticipants(@PathVariable Integer activityId,
+                                                                    @ModelAttribute PageParamRequest pageParamRequest) {
+        return CommonResult.success(CommonPage.restPage(lotteryRecordService.getParticipants(activityId, pageParamRequest)));
+    }
 }

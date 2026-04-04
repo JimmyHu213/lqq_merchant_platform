@@ -197,6 +197,38 @@ public class LotteryRecordServiceImpl extends ServiceImpl<LotteryRecordDao, Lott
     }
 
     @Override
+    public PageInfo<LotteryRecord> getParticipants(Integer activityId, PageParamRequest pageParamRequest) {
+        LotteryActivity activity = lotteryActivityService.getByIdException(activityId);
+        String periodNumber = activityId + "-" + String.format("%06d", activity.getCurrentPeriod());
+        Page<LotteryRecord> page = PageHelper.startPage(pageParamRequest.getPage(), pageParamRequest.getLimit());
+        LambdaQueryWrapper<LotteryRecord> lqw = Wrappers.lambdaQuery();
+        lqw.eq(LotteryRecord::getActivityId, activityId);
+        lqw.eq(LotteryRecord::getPeriodNumber, periodNumber);
+        lqw.orderByDesc(LotteryRecord::getCreateTime);
+        List<LotteryRecord> list = dao.selectList(lqw);
+        return new PageInfo<>(list);
+    }
+
+    @Override
+    public PageInfo<LotteryRecord> getPlatformRecords(PageParamRequest pageParamRequest) {
+        Page<LotteryRecord> page = PageHelper.startPage(pageParamRequest.getPage(), pageParamRequest.getLimit());
+        LambdaQueryWrapper<LotteryRecord> lqw = Wrappers.lambdaQuery();
+        lqw.orderByDesc(LotteryRecord::getCreateTime);
+        List<LotteryRecord> list = dao.selectList(lqw);
+        return new PageInfo<>(list);
+    }
+
+    @Override
+    public PageInfo<LotteryRecord> getPlatformWinners(PageParamRequest pageParamRequest) {
+        Page<LotteryRecord> page = PageHelper.startPage(pageParamRequest.getPage(), pageParamRequest.getLimit());
+        LambdaQueryWrapper<LotteryRecord> lqw = Wrappers.lambdaQuery();
+        lqw.eq(LotteryRecord::getIsWinner, 1);
+        lqw.orderByDesc(LotteryRecord::getCreateTime);
+        List<LotteryRecord> list = dao.selectList(lqw);
+        return new PageInfo<>(list);
+    }
+
+    @Override
     public Boolean redeemPrize(Integer recordId, Integer merId) {
         LotteryRecord record = dao.selectById(recordId);
         if (ObjectUtil.isNull(record)) {

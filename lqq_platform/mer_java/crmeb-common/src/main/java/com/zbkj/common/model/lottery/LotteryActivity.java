@@ -60,6 +60,12 @@ public class LotteryActivity implements Serializable {
     @ApiModelProperty(value = "状态: 0=关闭, 1=开启")
     private Integer status;
 
+    @ApiModelProperty(value = "审核状态: 0=待审核, 1=审核通过, 2=审核拒绝")
+    private Integer auditStatus;
+
+    @ApiModelProperty(value = "审核拒绝原因")
+    private String auditReason;
+
     @ApiModelProperty(value = "当前期号")
     private Integer currentPeriod;
 
