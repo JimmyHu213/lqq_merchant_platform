@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zbkj.service.dao.MerchantDao">
+
+    <select id="selectCircleMerchantsUnBind" resultType="com.zbkj.common.response.circle.CircleMerchantResponse">
+        SELECT m.id, m.name, m.real_name, m.phone, m.address_detail, m.latitude, m.longitude
+        FROM eb_merchant m
+        WHERE m.is_del = 0
+          AND NOT EXISTS (
+                SELECT 1
+                FROM eb_circle_merchant ecm
+                WHERE ecm.mer_id = m.id AND ecm.circle_id = #{circleId}
+            )
+    </select>
+</mapper>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zbkj.service.dao.MerchantDayRecordDao">
+
+    <select id="getVisitorsByMerIds" resultType="java.lang.Integer">
+        SELECT SUM(visitors)
+        FROM eb_merchant_day_record
+        WHERE mer_id IN
+        <foreach collection="merIds" item="id" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+        AND date_format(date, '%Y-%m-%d') = #{date}
+    </select>
+</mapper>

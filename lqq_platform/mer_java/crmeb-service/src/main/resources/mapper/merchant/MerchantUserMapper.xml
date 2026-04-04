@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zbkj.service.dao.MerchantUserDao">
+
+    <select id="findUserList" resultType="com.zbkj.common.response.MerchantUserPageResponse" parameterType="Map">
+        SELECT mu.uid,
+               u.nickname,u.avatar,u.sex,u.phone,
+               mm.level,usc.recharge_amount,usc.gift_amount,mm.financial_status,mm.create_time as membershipTime,
+               mml.name as levelName,
+               IFNULL(umc.uid, 0) as isCollect
+        FROM eb_merchant_user AS mu
+        LEFT JOIN eb_user u on u.id = mu.uid
+        LEFT JOIN eb_user_merchant_collect umc on mu.uid = umc.uid and mu.mer_id = umc.mer_id
+        LEFT JOIN eb_merchant_member mm on mu.uid = mm.uid and mu.mer_id = mm.mer_id and mm.is_logoff = 0
+        LEFT JOIN eb_merchant_member_level mml on mml.level = mm.level and mu.mer_id = mml.mer_id and mml.is_del = 0
+        LEFT JOIN eb_user_shopping_credits usc on usc.uid = mu.uid and usc.mer_id = mu.mer_id
+        WHERE mu.mer_id = #{merId} and u.is_logoff = 0
+        <if test="isCollect != null and isCollect == 1 ">
+            and umc.uid is not null
+        </if>
+        <if test="isMember != null and isMember == 1 ">
+            and mm.id is not null
+        </if>
+        <if test="memberLevel != null">
+            and mm.level = #{memberLevel}
+        </if>
+        <if test="financialStatus != null">
+            and mm.financial_status = #{financialStatus}
+        </if>
+        <if test="sex != null">
+            and u.sex = #{sex}
+        </if>
+        <if test="startTime != null and startTime != '' ">
+            and mm.create_time between #{startTime} and #{endTime}
+        </if>
+        <if test="keywords != '' and keywords != null ">
+            and (
+            u.id like CONCAT('%',#{keywords},'%') or
+            u.nickname like CONCAT('%',#{keywords},'%') or
+            u.phone like CONCAT('%',#{keywords},'%')
+            )
+        </if>
+        <if test="uid != null ">
+            and u.id = #{uid}
+        </if>
+        <if test="nickname != '' and nickname != null ">
+            and u.nickname like CONCAT('%',#{nickname},'%')
+        </if>
+        <if test="phone != '' and phone != null ">
+            and u.phone like CONCAT('%',#{phone},'%')
+        </if>
+        ORDER BY mu.id desc
+    </select>
+    <select id="getMerchantUserNum" resultType="java.lang.Integer">
+        SELECT count(1)
+        FROM eb_merchant_user emu
+        LEFT JOIN eb_user eu ON emu.uid = eu.id
+        WHERE emu.mer_id = #{merId} AND eu.is_logoff = 0
+    </select>
+    <select id="getAliveUserNum" resultType="java.lang.Integer">
+        SELECT count(DISTINCT ebr.uid)
+        FROM eb_merchant_user emu
+         LEFT JOIN eb_browse_record ebr ON emu.uid = ebr.uid
+         LEFT JOIN eb_product ep ON ep.id = ebr.product_id
+        WHERE emu.mer_id = #{merId} AND ep.mer_id = #{merId} AND ebr.date between #{startTime} and #{endTime}
+    </select>
+    <select id="getOrderUserNum" resultType="java.lang.Integer">
+        SELECT count(DISTINCT eo.uid)
+        FROM eb_merchant_user emu
+        LEFT JOIN eb_order eo ON emu.uid = eo.uid
+        WHERE emu.mer_id = #{merId} AND eo.is_del = 0 AND eo.mer_id = #{merId} AND eo.paid = 1
+          AND date_format(eo.pay_time, '%Y-%m-%d')  between #{startTime} and #{endTime}
+    </select>
+    <select id="getAliveUserNumByDate" resultType="java.lang.Integer">
+        SELECT count(DISTINCT ebr.uid)
+        FROM eb_merchant_user emu
+         LEFT JOIN eb_browse_record ebr ON emu.uid = ebr.uid
+         LEFT JOIN eb_product ep ON ep.id = ebr.product_id
+             WHERE emu.mer_id = 7 AND ep.mer_id = 7
+                AND date LIKE CONCAT(#{date}, '%')
+                -- 如果 date 是年月格式
+                AND CASE
+                    WHEN #{date} REGEXP '^[0-9]{4}-[0-9]{2}$' THEN
+                        CASE
+                            WHEN #{date} = LEFT(#{startTime}, 7) THEN ebr.date &gt;= #{startTime}
+                            WHEN #{date} = LEFT(#{endTime}, 7) THEN ebr.date &lt;= #{endTime}
+                            ELSE 1=1
+                        END
+                -- 如果 date 是年格式
+                    WHEN #{date} REGEXP '^[0-9]{4}$' THEN
+                        CASE
+                            WHEN #{date} = LEFT(#{startTime}, 4) THEN ebr.date &gt;= #{startTime}
+                            WHEN #{date} = LEFT(#{endTime}, 4) THEN ebr.date &lt;= #{endTime}
+                            ELSE 1=1
+                        END
+                    ELSE 1=1
+        END
+    </select>
+
+</mapper>

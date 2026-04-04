@@ -1,0 +1,43 @@
+package com.zbkj.admin.task.card;
+
+import com.zbkj.common.utils.CrmebDateUtil;
+import com.zbkj.service.service.CardTimesTaskService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
+/**
+ * 次卡订单到期状态流转定时任务
+ * +----------------------------------------------------------------------
+ * | CRMEB [ CRMEB赋能开发者，助力企业发展 ]
+ * +----------------------------------------------------------------------
+ * | Copyright (c) 2016~2026 https://www.crmeb.com All rights reserved.
+ * +----------------------------------------------------------------------
+ * | Licensed CRMEB并不是自由软件，未经许可不能去掉CRMEB相关版权
+ * +----------------------------------------------------------------------
+ * | Author: CRMEB Team <admin@crmeb.com>
+ * +----------------------------------------------------------------------
+ */
+@Component("CardTimesOrderValidityTask")
+public class CardTimesOrderValidityTask {
+
+    private static final Logger logger = LoggerFactory.getLogger(CardTimesOrderValidityTask.class);
+
+    @Autowired
+    private CardTimesTaskService cardTimesTaskService;
+
+
+
+    public void cardTimesOrderValidity() {
+        logger.info("---CardTimesOrderValidityTask task------produce Data with fixed rate task: Execution Time - {}", CrmebDateUtil.nowDateTime());
+        try {
+            cardTimesTaskService.cardTimesOrderValidity();
+        } catch (Exception e) {
+            e.printStackTrace();
+            logger.error("CardTimesOrderValidityTask.task" + " | msg : " + e.getMessage());
+        }
+    }
+
+
+}

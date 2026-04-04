@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zbkj.service.dao.circle.CircleDao">
+
+    <select id="getList" resultType="com.zbkj.common.response.circle.CircleTreeResponse">
+        SELECT ec.id, ec.name, ec.pid, ec.level, ec.range, ec.is_show, ec.status, ec.sort, ec.diy_id, eca.real_name , eca.phone
+        FROM eb_circle ec
+        LEFT JOIN eb_circle_admin eca ON ec.id = eca.circle_id
+        WHERE ec.is_delete = 0 and eca.is_del = 0 and eca.type = 5
+        order by ec.create_time desc
+    </select>
+
+
+    <select id="findAllDestination" resultType="com.zbkj.common.model.circle.Circle">
+        SELECT *
+        FROM eb_circle
+        WHERE is_delete = 0
+          AND address_switch = 1
+          AND is_show = 1
+          AND `status` = 1
+    </select>
+
+</mapper>

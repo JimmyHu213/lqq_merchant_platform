@@ -1,0 +1,155 @@
+@import 'theme_color.scss';
+
+:root, page {
+	--view-theme: #{$main-color-theme1};
+	--view-second-theme: #{$second-color-theme1};
+	--view-priceColor: #{$price-color-theme1};
+	--view-left-button-color: #{$left-button-color1};
+	--view-index-gradient: #{$index-gradient-color1};
+	--view-seckill-gradient: #{$seckill-grradient-color1};
+	--view-main-gradient: #{$main-gradient-color1};
+	--view-second-gradient: #{$second-gradient-color1};
+	--view-coupons-gradient: #{$coupons-gradient-color1};
+	--view-bargain-btn: #{$bargain-btn-color1};
+	--view-nav-two-btn: #{$nav-two-btn1};
+	--view-coupons-border: #{$coupons-border1};
+	--view-dashed-left-border: #{$dashed-left-border1};
+	--view-coupons-light-color: #{$coupons-light-color1};
+	--view-tab-border-bottom: #{$tab-border-bottom1};
+	--view-bragin-border-rate: #{$bragin-border-rate1};
+	--view-main-rgba: #{$main-rgba-theme1};
+	--view-shallow-gradient: #{$shallow-gradient-color1};
+	--view-logn-gradient: #{$logn-gradient-color1};
+}
+
+[data-theme="theme1"] {
+	--view-theme: #{$main-color-theme1};
+	--view-second-theme: #{$second-color-theme1};
+	--view-priceColor: #{$price-color-theme1};
+	--view-left-button-color: #{$left-button-color1};
+	--view-index-gradient: #{$index-gradient-color1};
+	--view-seckill-gradient: #{$seckill-grradient-color1};
+	--view-main-gradient: #{$main-gradient-color1};
+	--view-second-gradient: #{$second-gradient-color1};
+	--view-coupons-gradient: #{$coupons-gradient-color1};
+	--view-bargain-btn: #{$bargain-btn-color1};
+	--view-nav-two-btn: #{$nav-two-btn1};
+	--view-coupons-border: #{$coupons-border1};
+	--view-dashed-left-border: #{$dashed-left-border1};
+	--view-coupons-light-color: #{$coupons-light-color1};
+	--view-tab-border-bottom: #{$tab-border-bottom1};
+	--view-bragin-border-rate: #{$bragin-border-rate1};
+	--view-main-rgba: #{$main-rgba-theme1};
+	--view-shallow-gradient: #{$shallow-gradient-color1};
+	--view-logn-gradient: #{$logn-gradient-color1};
+}
+
+[data-theme="theme2"] {
+	--view-theme: #{$main-color-theme2};
+	--view-second-theme: #{$second-color-theme2};
+	--view-priceColor: #{$price-color-theme2};
+	--view-left-button-color: #{$left-button-color2};
+	--view-index-gradient: #{$index-gradient-color2};
+	--view-seckill-gradient: #{$seckill-grradient-color2};
+	--view-main-gradient: #{$main-gradient-color2};
+	--view-second-gradient: #{$second-gradient-color2};
+	--view-coupons-gradient: #{$coupons-gradient-color2};
+	--view-bargain-btn: #{$bargain-btn-color2};
+	--view-nav-two-btn: #{$nav-two-btn2};
+	--view-coupons-border: #{$coupons-border2};
+	--view-dashed-left-border: #{$dashed-left-border2};
+	--view-coupons-light-color: #{$coupons-light-color2};
+	--view-tab-border-bottom: #{$tab-border-bottom2};
+	--view-bragin-border-rate: #{$bragin-border-rate2};
+	--view-main-rgba: #{$main-rgba-theme2};
+	--view-shallow-gradient: #{$shallow-gradient-color2};
+	--view-logn-gradient: #{$logn-gradient-color2};
+}
+
+[data-theme="theme3"] {
+	--view-theme: #{$main-color-theme3};
+	--view-second-theme: #{$second-color-theme3};
+	--view-priceColor: #{$price-color-theme3};
+	--view-left-button-color: #{$left-button-color3};
+	--view-index-gradient: #{$index-gradient-color3};
+	--view-seckill-gradient: #{$seckill-grradient-color3};
+	--view-main-gradient: #{$main-gradient-color3};
+	--view-second-gradient: #{$second-gradient-color3};
+	--view-coupons-gradient: #{$coupons-gradient-color3};
+	--view-bargain-btn: #{$bargain-btn-color3};
+	--view-nav-two-btn: #{$nav-two-btn3};
+	--view-coupons-border: #{$coupons-border3};
+	--view-dashed-left-border: #{$dashed-left-border3};
+	--view-coupons-light-color: #{$coupons-light-color3};
+	--view-tab-border-bottom: #{$tab-border-bottom3};
+	--view-bragin-border-rate: #{$bragin-border-rate3};
+	--view-main-rgba: #{$main-rgba-theme3};
+	--view-shallow-gradient: #{$shallow-gradient-color3};
+	--view-logn-gradient: #{$logn-gradient-color3};
+}
+
+[data-theme="theme4"] {
+	--view-theme: #{$main-color-theme4};
+	--view-second-theme: #{$second-color-theme4};
+	--view-priceColor: #{$price-color-theme4};
+	--view-left-button-color: #{$left-button-color4};
+	--view-index-gradient: #{$index-gradient-color4};
+	--view-seckill-gradient: #{$seckill-grradient-color4};
+	--view-main-gradient: #{$main-gradient-color4};
+	--view-second-gradient: #{$second-gradient-color4};
+	--view-coupons-gradient: #{$coupons-gradient-color4};
+	--view-bargain-btn: #{$bargain-btn-color4};
+	--view-nav-two-btn: #{$nav-two-btn4};
+	--view-coupons-border: #{$coupons-border4};
+	--view-dashed-left-border: #{$dashed-left-border4};
+	--view-coupons-light-color: #{$coupons-light-color4};
+	--view-tab-border-bottom: #{$tab-border-bottom4};
+	--view-bragin-border-rate: #{$bragin-border-rate4};
+	--view-main-rgba: #{$main-rgba-theme4};
+	--view-shallow-gradient: #{$shallow-gradient-color4};
+	--view-logn-gradient: #{$logn-gradient-color4};
+}
+
+[data-theme="theme5"] {
+	--view-theme: #{$main-color-theme5};
+	--view-second-theme: #{$second-color-theme5};
+	--view-priceColor: #{$price-color-theme5};
+	--view-left-button-color: #{$left-button-color5};
+	--view-index-gradient: #{$index-gradient-color5};
+	--view-seckill-gradient: #{$seckill-grradient-color5};
+	--view-main-gradient: #{$main-gradient-color5};
+	--view-second-gradient: #{$second-gradient-color5};
+	--view-coupons-gradient: #{$coupons-gradient-color5};
+	--view-bargain-btn: #{$bargain-btn-color5};
+	--view-nav-two-btn: #{$nav-two-btn5};
+	--view-coupons-border: #{$coupons-border5};
+	--view-dashed-left-border: #{$dashed-left-border5};
+	--view-coupons-light-color: #{$coupons-light-color5};
+	--view-tab-border-bottom: #{$tab-border-bottom5};
+	--view-bragin-border-rate: #{$bragin-border-rate5};
+	--view-main-rgba: #{$main-rgba-theme5};
+	--view-shallow-gradient: #{$shallow-gradient-color5};
+	--view-logn-gradient: #{$logn-gradient-color5};
+}
+
+[data-theme="theme6"] {
+	--view-theme: #{$main-color-theme6};
+	--view-second-theme: #{$second-color-theme6};
+	--view-priceColor: #{$price-color-theme6};
+	--view-left-button-color: #{$left-button-color6};
+	--view-index-gradient: #{$index-gradient-color6};
+	--view-seckill-gradient: #{$seckill-grradient-color6};
+	--view-main-gradient: #{$main-gradient-color6};
+	--view-second-gradient: #{$second-gradient-color6};
+	--view-coupons-gradient: #{$coupons-gradient-color6};
+	--view-bargain-btn: #{$bargain-btn-color6};
+	--view-nav-two-btn: #{$nav-two-btn6};
+	--view-coupons-border: #{$coupons-border6};
+	--view-dashed-left-border: #{$dashed-left-border6};
+	--view-coupons-light-color: #{$coupons-light-color6};
+	--view-tab-border-bottom: #{$tab-border-bottom6};
+	--view-bragin-border-rate: #{$bragin-border-rate6};
+	--view-main-rgba: #{$main-rgba-theme6};
+	--view-shallow-gradient: #{$shallow-gradient-color6};
+	--view-logn-gradient: #{$logn-gradient-color6};
+}

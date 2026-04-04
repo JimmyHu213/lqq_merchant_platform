@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zbkj.service.dao.MerchantOrderDao">
+
+    <select id="selectMerchantOrderStatistics" resultType="com.zbkj.common.model.order.MerchantOrder">
+        SELECT emo.id, emo.order_no, emo.shipping_type
+        FROM `eb_merchant_order` as emo
+        LEFT JOIN `eb_order` as eo ON emo.order_no = eo.order_no
+        <where>
+            eo.is_del = 0 AND eo.is_user_del = 0 AND eo.is_merchant_del = 0 AND eo.paid = 1 AND eo.status != 9
+            <if test="merId != 0"> AND emo.mer_id = #{merId} </if>
+        </where>
+
+
+    </select>
+    <select id="getOrderProductNumByDateAndMerId" resultType="java.lang.Integer">
+        SELECT IFNULL(SUM(emo.total_num),0) as total_num
+        FROM `eb_merchant_order` as emo
+        LEFT JOIN `eb_order` as eo ON emo.order_no = eo.order_no
+        WHERE eo.is_del = 0 AND emo.mer_id = #{merId} AND date_format(eo.create_time, '%Y-%m-%d') = #{date}
+    </select>
+</mapper>

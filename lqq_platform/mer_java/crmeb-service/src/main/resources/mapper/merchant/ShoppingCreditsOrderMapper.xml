@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zbkj.service.dao.ShoppingCreditsOrderDao">
+
+    <select id="findPageByMerchant" resultType="com.zbkj.common.response.ShoppingCreditsOrderPageResponse" parameterType="Map">
+        select
+        sco.order_no,sco.recharge_amount,sco.gift_amount,sco.pay_type,sco.pay_channel,sco.pay_time,sco.out_trade_no,
+        sco.uid,u.nickname,u.avatar,u.phone
+        from eb_shopping_credits_order sco
+        left join eb_user as u on sco.uid = u.id
+        where sco.paid = 1
+        <if test="merId != null">
+            and sco.mer_id = #{merId}
+        </if>
+        <if test="orderNo != null and orderNo !=''">
+            and sco.order_no like CONCAT('%',#{orderNo},'%')
+        </if>
+        <if test="payType != null and payType != ''">
+            and sco.pay_type = #{payType}
+        </if>
+        <if test="startTime != null and startTime != ''">
+            and sco.pay_time between #{startTime} and #{endTime}
+        </if>
+        <if test="keywords != '' and keywords != null ">
+            and (
+            sco.uid like CONCAT('%',#{keywords},'%') or
+            u.nickname like CONCAT('%',#{keywords},'%') or
+            u.phone like CONCAT('%',#{keywords},'%')
+            )
+        </if>
+        <if test="uid != null ">
+            and sco.uid = #{uid}
+        </if>
+        <if test="nickname != '' and nickname != null ">
+            and u.nickname like CONCAT('%',#{nickname},'%')
+        </if>
+        <if test="phone != '' and phone != null ">
+            and u.phone like CONCAT('%',#{phone},'%')
+        </if>
+        order by sco.id desc
+    </select>
+
+    <select id="getRechargeCountByMerIdAndDateGroupUserId" resultType="java.lang.Integer">
+        SELECT count(1)
+        FROM (
+             SELECT
+                 ANY_VALUE(uid) as uid
+             FROM
+                 eb_shopping_credits_order
+             WHERE
+                 mer_id = #{merId}
+               AND paid = 1
+               AND DATE_FORMAT( create_time, '%Y-%m-%d %h:%m:%s' ) BETWEEN #{startDateTime} AND #{endDateTime}
+             GROUP BY uid
+        ) aa
+    </select>
+
+    <select id="getRechargeAmountByMerIdAndDate" resultType="java.math.BigDecimal">
+        SELECT
+            SUM(recharge_amount)
+        FROM
+            eb_shopping_credits_order
+        WHERE
+            mer_id = #{merId}
+          AND paid = 1
+          AND DATE_FORMAT( create_time, '%Y-%m-%d %h:%m:%s' ) BETWEEN #{startDateTime} AND #{endDateTime}
+    </select>
+
+    <select id="getRechargeOrderNumByMerIdAndDate" resultType="java.lang.Integer">
+        SELECT
+            COUNT(id)
+        FROM
+            eb_shopping_credits_order
+        WHERE
+            mer_id = #{merId}
+          AND paid = 1
+          AND DATE_FORMAT( create_time, '%Y-%m-%d %h:%m:%s' ) BETWEEN #{startDateTime} AND #{endDateTime}
+    </select>
+
+</mapper>

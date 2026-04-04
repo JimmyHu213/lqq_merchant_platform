@@ -1,0 +1,142 @@
+/*
+@mixin 指令允许我们定义一个可以在整个样式表中重复使用的样式。
+*/
+@import 'theme_color.scss';
+
+//主色
+@mixin main_color($color) { 
+	color: $color;
+	color: var(--view-theme, $color) !important;
+}
+
+//辅色
+@mixin second_color($color) { 
+	color: $color;
+	color: var(--view-second-theme, $color) !important;
+}
+
+//价格色
+@mixin price_color($color) { 
+	color: $color;
+	color: var(--view-priceColor, $color) !important;
+}
+
+//左侧按钮
+@mixin left_color($color) { 
+	background-color: $color;
+	background-color: var(--view-left-button-color, $color) !important;
+}
+
+// 详情页优惠券，边框颜色
+@mixin coupons_border_color($color) { 
+	border: $color;
+	border: var(--view-coupons-border, $color) !important;
+}
+
+// 虚线左边框
+@mixin dashed_border_left($color) { 
+	border: $color;
+	border-left: var(--view-dashed-left-border, $color);
+}
+
+// 分类左边边框
+@mixin border_left($color) {
+	border: $color;
+	border-left: 4rpx solid var(--view-theme);
+}
+
+//分类页二级菜单按钮
+@mixin cate-two-btn($color) { 
+	background-color: $color;
+	background-color: var(--view-nav-two-btn, $color) !important;
+}
+
+@mixin white_left_border{ 
+	border-left-color: #fff !important;
+}
+
+@mixin white_right_border{ 
+	border-right-color: #fff !important;
+}
+
+//tab下划线
+@mixin tab_border_bottom($color) {
+	border-bottom: $color;
+	border-bottom: var(--view-tab-border-bottom, $color) !important;
+}
+
+// 优惠券淡色
+@mixin coupons_light_color($color) { 
+	background-color: $color;
+	background-color: var(--view-coupons-light-color, $color) !important;
+}
+
+//主色背景
+@mixin main_bg_color($color) { 
+	background-color: $color;
+	background-color: var(--view-theme, $color) !important;
+}
+
+// 主渐变色
+@mixin linear-gradient($color) {
+	 background:$color;
+	 background: linear-gradient(var(--view-main-gradient));
+}
+
+//辅渐变色
+@mixin second-gradient($color) {
+	 background:$color;
+	 background: linear-gradient(var(--view-second-gradient));
+}
+
+// 首页渐变
+@mixin index-gradient($color) {
+	 background:$color;
+	 background: -webkit-linear-gradient(var(--view-index-gradient));
+}
+
+@mixin seckill-gradient($color) {
+	 background:$color;
+	 background: -webkit-linear-gradient(var(--view-seckill-gradient));
+}
+
+@mixin coupons-gradient($color) {
+	 background-image:$color;
+	 background-image: -webkit-linear-gradient(var(--view-coupons-gradient));
+}
+
+//砍价按钮 bargain-btn-color1
+@mixin bargain-btn($color) {
+	 background-image:$color;
+	 background-image: -webkit-linear-gradient(var(--view-bargain-btn));
+}
+
+ //砍价弹框小三角
+ @mixin bragin-border-rate($color) {
+	 border-color:$color;
+	 border-color: var(--view-bragin-border-rate);
+ }
+ 
+ //主色带透明度
+@mixin main_rgba_color($color) {
+	background:$color;
+	background-color: var(--view-main-rgba);
+}
+
+// 我的账户背景浅色渐变色
+@mixin shallow-gradient($color) {
+	background:$color;
+	background: linear-gradient(var(--view-shallow-gradient)) !important;
+}
+
+ // 手机登录渐变色
+ @mixin logn-gradient($color) {
+ 	 background:$color;
+ 	 background: -webkit-linear-gradient(var(--view-logn-gradient)) !important;
+ }
+
+// 详情页优惠券，边框颜色
+@mixin border_color($color) {
+	border: $color;
+	border: 1rpx solid var(--view-theme) !important;
+}

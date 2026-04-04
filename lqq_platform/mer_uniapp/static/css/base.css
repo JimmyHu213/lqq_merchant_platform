@@ -1,0 +1,63 @@
+@charset "UTF-8";
+
+/* 全局CSS变量定义 */
+:root {
+	/* 屏幕高度相关 */
+	--screen-height: 100vh;
+	--screen-width: 100vw;
+	
+	/* 状态栏高度 */
+	--status-bar-height: 0px;
+	
+	/* 导航栏高度 */
+	--nav-bar-height: 44px;
+	
+	/* 安全区域 */
+	--safe-area-inset-top: env(safe-area-inset-top);
+	--safe-area-inset-bottom: env(safe-area-inset-bottom);
+	--safe-area-inset-left: env(safe-area-inset-left);
+	--safe-area-inset-right: env(safe-area-inset-right);
+	
+	/* 常用间距 */
+	--spacing-xs: 8rpx;
+	--spacing-sm: 16rpx;
+	--spacing-md: 24rpx;
+	--spacing-lg: 32rpx;
+	--spacing-xl: 48rpx;
+	
+	/* 常用圆角 */
+	--border-radius-sm: 8rpx;
+	--border-radius-md: 16rpx;
+	--border-radius-lg: 24rpx;
+	--border-radius-xl: 32rpx;
+	
+	/* 常用阴影 */
+	--shadow-sm: 0 2rpx 8rpx rgba(0, 0, 0, 0.1);
+	--shadow-md: 0 4rpx 16rpx rgba(0, 0, 0, 0.15);
+	--shadow-lg: 0 8rpx 32rpx rgba(0, 0, 0, 0.2);
+}
+
+body,
+html {
+	height: unset;
+}
+/deep/uni-video, /deep/video, /deep/.wscnph, /deep/img, /deep/image {
+	max-width: 750rpx !important;
+	height: auto;
+	margin: 0;
+	padding: 0;
+	display: block
+}
+
+page {
+	font-size: 28rpx;
+	background-color: #f5f5f5;
+	color: #333;
+}
+.main {
+	padding: 0 20rpx;
+}
+view{
+	box-sizing: border-box;
+}
+

@@ -8,6 +8,14 @@
 - 确认修改没有破坏 CRMEB 已有功能
 - 对比 mlqApi/ 源码验证业务逻辑等价性
 
+## 安全红线审查（必须检查，违反即 REJECTED）
+Generator 的代码中如果包含以下操作且**未经用户同意**，必须标记为 **REJECTED**：
+1. 删除任何文件或目录（rm、unlink、git clean 等）
+2. 修改系统配置（Docker、.env、数据库配置、Nginx 等）
+3. 破坏性 Git 操作（reset --hard、force push、branch -D）
+4. 清除数据（DROP TABLE、TRUNCATE 等）
+5. 安装或卸载系统级依赖（composer require/remove）
+
 ## 技能树
 
 ### 核心技能

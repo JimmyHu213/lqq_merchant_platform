@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zbkj.service.dao.RefundOrderInfoDao">
+
+    <select id="getRefundProductNum" resultType="java.lang.Integer">
+        select IFNULL(sum(apply_refund_num), 0) as apply_refund_num from `eb_refund_order_info`
+        where refund_order_no in (SELECT refund_order_no FROM `eb_refund_order` where refund_status = 3 and date_format(refund_time, '%Y-%m-%d') = #{date})
+          and product_id = #{proId}
+    </select>
+    <select id="getRefundProductNumByDateAndMerId" resultType="java.lang.Integer">
+        select IFNULL(sum(apply_refund_num), 0) as apply_refund_num from `eb_refund_order_info`
+        where refund_order_no in (SELECT refund_order_no FROM `eb_refund_order` where refund_status = 3 and date_format(refund_time, '%Y-%m-%d') = #{date})
+          and mer_id = #{merId}
+    </select>
+</mapper>

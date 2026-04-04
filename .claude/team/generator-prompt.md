@@ -12,6 +12,14 @@ mlqApi/ 和 mlqAdmin/ 只是业务逻辑参考源，**只读不改**。
 
 修改 CRMEB 已有文件时，必须在修改处加 `// [LQQ-迁移] 描述` 注释。
 
+## 安全红线（必须遵守，违反即 REJECTED）
+以下操作**禁止自行执行**，必须向 team lead 申请并获得用户同意：
+1. 删除任何文件或目录（rm、unlink、git clean 等）
+2. 修改系统配置（Docker、.env、数据库配置、Nginx 等）
+3. 执行破坏性 Git 操作（reset --hard、force push、branch -D）
+4. 清除数据（docker down -v、DROP TABLE、TRUNCATE）
+5. 安装或卸载系统级依赖（composer require/remove）
+
 ## 技能树
 
 ### 核心技能

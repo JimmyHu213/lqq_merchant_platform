@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zbkj.service.dao.UserShoppingCreditsDao">
+
+    <select id="getTotalRechargeAmount" resultType="java.math.BigDecimal" parameterType="Map">
+        SELECT sum(recharge_amount) FROM eb_user_shopping_credits_record
+        where uid = #{userId} and mer_id = #{merId}
+        and link_type = 'recharge'
+    </select>
+
+    <select id="getTotalGiftAmount" resultType="java.math.BigDecimal" parameterType="Map">
+        SELECT sum(gift_amount) FROM eb_user_shopping_credits_record
+        where uid = #{userId} and mer_id = #{merId}
+          and link_type = 'recharge'
+    </select>
+
+    <select id="getTotalConsumeAmount" resultType="java.math.BigDecimal" parameterType="Map">
+        SELECT sum(recharge_amount + gift_amount) FROM eb_user_shopping_credits_record
+        where uid = #{userId} and mer_id = #{merId}
+          and link_type = 'order'
+    </select>
+
+</mapper>

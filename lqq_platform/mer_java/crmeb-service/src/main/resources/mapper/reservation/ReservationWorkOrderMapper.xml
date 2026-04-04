@@ -1,0 +1,277 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zbkj.service.dao.reservation.ReservationWorkOrderDao">
+
+    <select id="selectWorkerOrderList" resultType="com.zbkj.common.model.reservation.ReservationWorkOrder">
+        SELECT rwo.id,rwo.work_order_no,rwo.mer_id,rwo.order_no,rwo.order_detail_id,rwo.reservation_date,rwo.reservation_time_slot,
+               rwo.user_id,rwo.user_name,rwo.user_phone,rwo.user_address,rwo.longitude,rwo.latitude,
+               rwo.service_staff_id,rwo.collaborator_ids,rwo.service_status,rwo.refund_status,rwo.clock_in_status,rwo.clock_in_photo,
+               rwo.clock_in_remark,rwo.service_evidence_form_id,rwo.service_evidence_form,rwo.allocate_type,rwo.service_type,rwo.is_edit_allocate,
+               rwo.is_edit_reservation,rwo.reservation_form_id,rwo.reservation_form_data,rwo.service_start_time,rwo.service_end_time,rwo.create_time,rwo.update_time
+        FROM eb_reservation_work_order rwo
+        LEFT JOIN eb_user u ON rwo.user_id = u.id
+        WHERE rwo.mer_Id = #{merId}
+
+        <if test="reservationKeywords != '' and reservationKeywords != null">
+            AND (
+            rwo.user_phone LIKE CONCAT('%', #{reservationKeywords}, '%')
+            OR rwo.user_name LIKE CONCAT('%', #{reservationKeywords}, '%')
+            )
+        </if>
+        <if test="serviceStaffIds != null and serviceStaffIds.size() > 0">
+            AND rwo.service_staff_id IN
+            <foreach item="serviceStaffId" collection="serviceStaffIds" open="(" separator="," close=")">
+                #{serviceStaffId}
+            </foreach>
+        </if>
+        <if test="serviceType != null">
+            AND rwo.service_type = #{serviceType}
+        </if>
+        <if test="reservationDate != '' and reservationDate != null">
+            AND rwo.reservation_date = #{reservationDate}
+        </if>
+        <if test="serviceStatusSet != null and serviceStatusSet.size() > 0">
+            AND rwo.service_status IN
+            <foreach item="status" collection="serviceStatusSet" open="(" separator="," close=")">
+                #{status}
+            </foreach>
+            AND rwo.refund_status &lt; 2
+        </if>
+        <if test="UserKeywords != '' and UserKeywords != null ">
+            and (
+            rwo.user_id like CONCAT('%',#{UserKeywords},'%') or
+            u.nickname like CONCAT('%',#{UserKeywords},'%') or
+            u.phone like CONCAT('%',#{UserKeywords},'%')
+            )
+        </if>
+        <if test="uid != null ">
+            and rwo.user_id = #{uid}
+        </if>
+        <if test="nickname != '' and nickname != null ">
+            and u.nickname like CONCAT('%',#{nickname},'%')
+        </if>
+        <if test="phone != '' and phone != null ">
+            and u.phone like CONCAT('%',#{phone},'%')
+        </if>
+
+    </select>
+
+    <select id="getOverViewData" resultType="com.zbkj.common.model.reservation.ReservationWorkOrder">
+        SELECT rwo.*
+        FROM eb_reservation_work_order rwo
+        LEFT JOIN eb_user u ON rwo.user_id = u.id
+        WHERE rwo.mer_Id = #{merId} AND rwo.refund_status &lt; 2
+        <if test="reservationKeywords != '' and reservationKeywords != null">
+            AND (
+            rwo.user_phone LIKE CONCAT('%', #{reservationKeywords}, '%')
+            OR rwo.user_name LIKE CONCAT('%', #{reservationKeywords}, '%')
+            )
+        </if>
+        <if test="staffId != null">
+            AND rwo.service_staff_id in (0,#{staffId})
+        </if>
+        <if test="serviceType != null">
+            AND rwo.service_type = #{serviceType}
+        </if>
+        <if test="reservationDate != '' and reservationDate != null">
+            AND rwo.reservation_date = #{reservationDate}
+        </if>
+        <choose>
+            <when test="serviceStatusList != null and serviceStatusList.size() > 0">
+                AND rwo.service_status IN
+                <foreach item="status" collection="serviceStatusList" open="(" separator="," close=")">
+                    #{status}
+                </foreach>
+            </when>
+            <otherwise>
+                AND rwo.service_status = 1
+            </otherwise>
+        </choose>
+        <if test="UserKeywords != '' and UserKeywords != null ">
+            and (
+            rwo.user_id like CONCAT('%',#{UserKeywords},'%') or
+            u.nickname like CONCAT('%',#{UserKeywords},'%') or
+            u.phone like CONCAT('%',#{UserKeywords},'%')
+            )
+        </if>
+        <if test="uid != null ">
+            and rwo.user_id = #{uid}
+        </if>
+        <if test="nickname != '' and nickname != null ">
+            and u.nickname like CONCAT('%',#{nickname},'%')
+        </if>
+        <if test="phone != '' and phone != null ">
+            and u.phone like CONCAT('%',#{phone},'%')
+        </if>
+    </select>
+
+
+    <select id="getWorkOrderListPage" resultType="com.zbkj.common.model.reservation.ReservationWorkOrder">
+        SELECT rwo.id,rwo.work_order_no,rwo.mer_id,rwo.order_no,rwo.order_detail_id,rwo.reservation_date,rwo.reservation_time_slot,
+               rwo.user_id,rwo.user_name,rwo.user_phone,rwo.user_address,rwo.longitude,rwo.latitude,
+               rwo.service_staff_id,rwo.collaborator_ids,rwo.service_status,rwo.refund_status,rwo.clock_in_status,rwo.clock_in_photo,
+               rwo.clock_in_remark,rwo.service_evidence_form_id,rwo.service_evidence_form,rwo.allocate_type,rwo.service_type,rwo.is_edit_allocate,
+               rwo.is_edit_reservation,rwo.reservation_form_id,rwo.reservation_form_data,rwo.service_start_time,rwo.service_end_time,rwo.create_time,rwo.update_time
+        FROM eb_reservation_work_order rwo
+                 LEFT JOIN eb_user u ON rwo.user_id = u.id
+        WHERE rwo.mer_Id = #{merId}
+        <choose>
+            <when test='status == "1"'>
+                AND rwo.service_status = 1 AND rwo.refund_status &lt; 2
+            </when>
+            <when test='status == "2"'>
+                AND rwo.service_status = 2 AND rwo.refund_status &lt; 2
+            </when>
+            <when test='status == "3"'>
+                AND rwo.service_status = 3 AND rwo.refund_status &lt; 2
+            </when>
+            <when test='status == "4"'>
+                AND rwo.service_status = 4 AND rwo.refund_status &lt; 2
+            </when>
+            <when test='status == "9"'>
+              AND rwo.refund_status = 2
+            </when>
+        </choose>
+        <if test="workOrderNo != '' and workOrderNo != null">
+            AND rwo.work_order_no LIKE CONCAT('%', #{workOrderNo}, '%')
+        </if>
+        <if test="orderNo != '' and orderNo != null">
+            AND rwo.order_no LIKE CONCAT('%', #{orderNo}, '%')
+        </if>
+        <if test="serviceType != null">
+            AND rwo.service_type = #{serviceType}
+        </if>
+        <if test="startTime != null and endTime != null">
+            AND rwo.reservation_date BETWEEN #{startTime} AND #{endTime}
+        </if>
+        <if test="UserKeywords != '' and UserKeywords != null ">
+            AND (
+            rwo.user_id LIKE CONCAT('%',#{UserKeywords},'%') OR
+            u.nickname LIKE CONCAT('%',#{UserKeywords},'%') OR
+            u.phone LIKE CONCAT('%',#{UserKeywords},'%')
+            )
+        </if>
+        <if test="uid != null ">
+            AND rwo.user_id = #{uid}
+        </if>
+        <if test="nickname != '' and nickname != null ">
+            AND u.nickname LIKE CONCAT('%',#{nickname},'%')
+        </if>
+        <if test="phone != '' and phone != null ">
+            AND u.phone LIKE CONCAT('%',#{phone},'%')
+        </if>
+        ORDER BY rwo.id DESC
+    </select>
+
+    <select id="getWorkOrderCount" resultType="java.lang.Integer">
+        SELECT count(1)
+        FROM eb_reservation_work_order rwo
+        LEFT JOIN eb_user u ON rwo.user_id = u.id
+        WHERE rwo.mer_Id = #{merId}
+        <choose>
+            <when test='status == "1"'>
+                AND rwo.service_status = 1 AND rwo.refund_status &lt; 2
+            </when>
+            <when test='status == "2"'>
+                AND rwo.service_status = 2 AND rwo.refund_status &lt; 2
+            </when>
+            <when test='status == "3"'>
+                AND rwo.service_status = 3 AND rwo.refund_status &lt; 2
+            </when>
+            <when test='status == "4"'>
+                AND rwo.service_status = 4 AND rwo.refund_status &lt; 2
+            </when>
+            <when test='status == "9"'>
+                AND rwo.refund_status = 2
+            </when>
+        </choose>
+        <if test="workOrderNo != '' and workOrderNo != null">
+            AND rwo.work_order_no LIKE CONCAT('%', #{workOrderNo}, '%')
+        </if>
+        <if test="orderNo != '' and orderNo != null">
+            AND rwo.order_no LIKE CONCAT('%', #{orderNo}, '%')
+        </if>
+        <if test="serviceType != null">
+            AND rwo.service_type = #{serviceType}
+        </if>
+        <if test="startTime != null and endTime != ''">
+            AND rwo.reservation_date BETWEEN #{startTime} AND #{endTime}
+        </if>
+        <if test="UserKeywords != '' and UserKeywords != null ">
+            AND (
+            rwo.user_id LIKE CONCAT('%',#{UserKeywords},'%') OR
+            u.nickname LIKE CONCAT('%',#{UserKeywords},'%') OR
+            u.phone LIKE CONCAT('%',#{UserKeywords},'%')
+            )
+        </if>
+        <if test="uid != null ">
+            AND rwo.user_id = #{uid}
+        </if>
+        <if test="nickname != '' and nickname != null ">
+            AND u.nickname LIKE CONCAT('%',#{nickname},'%')
+        </if>
+        <if test="phone != '' and phone != null ">
+            AND u.phone LIKE CONCAT('%',#{phone},'%')
+        </if>
+    </select>
+
+    <select id="findAwaitReceiveList" resultType="com.zbkj.common.model.reservation.ReservationWorkOrder">
+        SELECT rwo.*
+        FROM eb_reservation_work_order rwo
+        LEFT JOIN eb_order_detail od on od.id = rwo.order_detail_id
+        WHERE rwo.mer_Id = #{merId}
+        AND rwo.service_type = 1
+        AND rwo.service_status = 1
+        AND rwo.refund_status &lt; 2
+        <if test="keywords != '' and keywords != null ">
+            AND (
+            rwo.work_order_no LIKE CONCAT('%',#{keywords},'%') OR
+            rwo.order_no LIKE CONCAT('%',#{keywords},'%') OR
+            od.product_name LIKE CONCAT('%',#{keywords},'%')
+            )
+        </if>
+        ORDER BY rwo.id DESC
+    </select>
+
+    <select id="findFrontList" resultType="com.zbkj.common.model.reservation.ReservationWorkOrder">
+        SELECT rwo.*
+        FROM eb_reservation_work_order rwo
+        LEFT JOIN eb_order_detail od on od.id = rwo.order_detail_id
+        WHERE rwo.service_staff_id = #{staffId}
+        <choose>
+            <when test='status == "2"'>
+                AND rwo.service_status = 2 AND rwo.refund_status &lt; 2
+            </when>
+            <when test='status == "3"'>
+                AND rwo.service_status = 3 AND rwo.refund_status &lt; 2
+            </when>
+            <when test='status == "4"'>
+                AND rwo.service_status = 4 AND rwo.refund_status &lt; 2
+            </when>
+            <when test='status == "9"'>
+                AND rwo.refund_status = 2
+            </when>
+        </choose>
+        <if test="keywords != '' and keywords != null ">
+            AND (
+            rwo.work_order_no LIKE CONCAT('%',#{keywords},'%') OR
+            rwo.order_no LIKE CONCAT('%',#{keywords},'%') OR
+            od.product_name LIKE CONCAT('%',#{keywords},'%')
+            )
+        </if>
+        <if test="startDate != '' and startDate != null ">
+            AND rwo.reservation_date BETWEEN #{startDate} AND #{endDate}
+        </if>
+        <choose>
+            <when test='status == "2"'>
+                ORDER BY STR_TO_DATE(rwo.reservation_date, '%Y-%m-%d') ASC, rwo.id DESC
+            </when>
+            <when test='status == "3"'>
+                ORDER BY STR_TO_DATE(rwo.reservation_date, '%Y-%m-%d') ASC, rwo.id DESC
+            </when>
+            <otherwise>
+                ORDER BY rwo.id DESC
+            </otherwise>
+        </choose>
+    </select>
+</mapper>

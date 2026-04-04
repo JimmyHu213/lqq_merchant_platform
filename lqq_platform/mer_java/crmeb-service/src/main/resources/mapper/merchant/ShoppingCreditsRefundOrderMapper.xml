@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zbkj.service.dao.ShoppingCreditsRefundOrderDao">
+
+    <select id="findPageByMerchant" resultType="com.zbkj.common.response.ShoppingCreditsRefundOrderPageResponse" parameterType="Map">
+        select
+        scro.refund_order_no,scro.order_no,scro.refund_amount,scro.refund_gift_amount,scro.refund_status,scro.create_time,
+        scro.uid,u.nickname,u.avatar,u.phone
+        from eb_shopping_credits_refund_order scro
+        left join eb_user as u on scro.uid = u.id
+        where scro.mer_id = #{merId}
+        <if test="refundStatus != null">
+            and scro.refund_status = #{refundStatus}
+        </if>
+        <if test="orderNo != null and orderNo !=''">
+            and scro.order_no like CONCAT('%',#{orderNo},'%')
+        </if>
+        <if test="refundOrderNo != null and refundOrderNo !=''">
+            and scro.refund_order_no like CONCAT('%',#{refundOrderNo},'%')
+        </if>
+        <if test="startTime != null and startTime != ''">
+            and scro.create_time between #{startTime} and #{endTime}
+        </if>
+        <if test="keywords != '' and keywords != null ">
+            and (
+            scro.uid like CONCAT('%',#{keywords},'%') or
+            u.nickname like CONCAT('%',#{keywords},'%') or
+            u.phone like CONCAT('%',#{keywords},'%')
+            )
+        </if>
+        <if test="uid != null ">
+            and scro.uid = #{uid}
+        </if>
+        <if test="nickname != '' and nickname != null ">
+            and u.nickname like CONCAT('%',#{nickname},'%')
+        </if>
+        <if test="phone != '' and phone != null ">
+            and u.phone like CONCAT('%',#{phone},'%')
+        </if>
+        order by scro.id desc
+    </select>
+
+</mapper>
