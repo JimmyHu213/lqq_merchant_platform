@@ -80,6 +80,10 @@ public class CouponUser implements Serializable {
     @ApiModelProperty(value = "状态（0：未使用，1：已使用, 2:已失效）")
     private Integer status;
 
+    // [LQQ-迁移] 优惠券转赠来源用户ID
+    @ApiModelProperty(value = "转赠来源用户ID，NULL表示非转赠获得")
+    private Integer transferFromUid;
+
     @ApiModelProperty(value = "创建时间")
     private Date createTime;
 

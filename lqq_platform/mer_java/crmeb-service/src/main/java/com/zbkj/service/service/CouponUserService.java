@@ -151,4 +151,13 @@ public interface CouponUserService extends IService<CouponUser> {
      * 批量领取优惠券
      */
     void batchReceiveCoupon(List<Coupon> couponList, Integer userId);
+
+    // [LQQ-迁移] 优惠券转赠
+    /**
+     * 优惠券转赠
+     * @param couponUserId 用户优惠券记录ID
+     * @param recipientUid 接收人用户ID
+     * @return Boolean
+     */
+    Boolean transferCoupon(Integer couponUserId, Integer recipientUid);
 }

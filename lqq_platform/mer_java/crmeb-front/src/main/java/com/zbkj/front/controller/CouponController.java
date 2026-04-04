@@ -82,6 +82,16 @@ public class CouponController {
     public CommonResult<List<CouponFrontResponse>> findMerchantMemberCouponByIds(@ModelAttribute @Validated CommonIdsRequest request) {
         return CommonResult.success(couponService.findMerchantMemberCouponByIds(request.getIds()));
     }
+
+    // [LQQ-迁移] 优惠券转赠
+    @ApiOperation(value = "优惠券转赠")
+    @RequestMapping(value = "/transfer", method = RequestMethod.POST)
+    public CommonResult<String> transfer(@RequestBody @Validated CouponTransferRequest request) {
+        if (couponUserService.transferCoupon(request.getCouponUserId(), request.getRecipientUid())) {
+            return CommonResult.success("转赠成功");
+        }
+        return CommonResult.failed("转赠失败");
+    }
 }
 
 
