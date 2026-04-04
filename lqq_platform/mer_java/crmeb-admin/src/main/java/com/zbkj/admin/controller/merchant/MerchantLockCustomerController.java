@@ -7,6 +7,7 @@ import com.github.pagehelper.PageInfo;
 import com.zbkj.common.model.user.User;
 import com.zbkj.common.page.CommonPage;
 import com.zbkj.common.request.PageParamRequest;
+import com.zbkj.common.response.LockCustomerCountResponse;
 import com.zbkj.common.result.CommonResult;
 import com.zbkj.common.utils.SecurityUtil;
 import com.zbkj.service.service.UserService;
@@ -16,9 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * 商户锁客管理控制器
@@ -47,12 +46,12 @@ public class MerchantLockCustomerController {
 
     @ApiOperation(value = "锁客统计")
     @RequestMapping(value = "/count", method = RequestMethod.GET)
-    public CommonResult<Map<String, Integer>> count() {
+    public CommonResult<LockCustomerCountResponse> count() {
         Integer merId = SecurityUtil.getLoginUserVo().getUser().getMerId();
         Integer total = userService.count(Wrappers.<User>lambdaQuery()
                 .eq(User::getLockedMerchantId, merId));
-        Map<String, Integer> result = new HashMap<>();
-        result.put("total", total);
-        return CommonResult.success(result);
+        LockCustomerCountResponse response = new LockCustomerCountResponse();
+        response.setTotal(total);
+        return CommonResult.success(response);
     }
 }

@@ -5,6 +5,7 @@ import com.zbkj.common.model.lottery.LotteryRecord;
 import com.zbkj.common.page.CommonPage;
 import com.zbkj.common.request.LotteryParticipateRequest;
 import com.zbkj.common.request.PageParamRequest;
+import com.zbkj.common.response.OperationResponse;
 import com.zbkj.common.result.CommonResult;
 import com.zbkj.service.service.LotteryActivityService;
 import com.zbkj.service.service.LotteryRecordService;
@@ -44,9 +45,9 @@ public class LotteryController {
 
     @ApiOperation(value = "参与抽奖")
     @RequestMapping(value = "/participate", method = RequestMethod.POST)
-    public CommonResult<String> participate(@RequestBody @Validated LotteryParticipateRequest request) {
+    public CommonResult<OperationResponse> participate(@RequestBody @Validated LotteryParticipateRequest request) {
         if (lotteryRecordService.participate(request.getActivityId())) {
-            return CommonResult.success("参与成功");
+            return CommonResult.success(new OperationResponse("参与成功"));
         }
         return CommonResult.failed("参与失败");
     }

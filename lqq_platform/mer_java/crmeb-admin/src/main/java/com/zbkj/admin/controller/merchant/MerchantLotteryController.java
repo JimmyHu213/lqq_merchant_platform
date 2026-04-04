@@ -5,6 +5,7 @@ import com.zbkj.common.model.lottery.LotteryRecord;
 import com.zbkj.common.page.CommonPage;
 import com.zbkj.common.request.LotteryActivityRequest;
 import com.zbkj.common.request.PageParamRequest;
+import com.zbkj.common.response.OperationResponse;
 import com.zbkj.common.result.CommonResult;
 import com.zbkj.common.utils.SecurityUtil;
 import com.zbkj.service.service.LotteryActivityService;
@@ -40,20 +41,20 @@ public class MerchantLotteryController {
 
     @ApiOperation(value = "创建抽奖活动")
     @RequestMapping(value = "/activity/create", method = RequestMethod.POST)
-    public CommonResult<String> createActivity(@RequestBody @Validated LotteryActivityRequest request) {
+    public CommonResult<OperationResponse> createActivity(@RequestBody @Validated LotteryActivityRequest request) {
         Integer merId = SecurityUtil.getLoginUserVo().getUser().getMerId();
         if (lotteryActivityService.createActivity(request, merId)) {
-            return CommonResult.success("创建成功，等待平台审核");
+            return CommonResult.success(new OperationResponse("创建成功，等待平台审核"));
         }
         return CommonResult.failed("创建失败");
     }
 
     @ApiOperation(value = "编辑抽奖活动")
-    @RequestMapping(value = "/activity/update", method = RequestMethod.PUT)
-    public CommonResult<String> updateActivity(@RequestBody @Validated LotteryActivityRequest request) {
+    @RequestMapping(value = "/activity/update", method = RequestMethod.POST)
+    public CommonResult<OperationResponse> updateActivity(@RequestBody @Validated LotteryActivityRequest request) {
         Integer merId = SecurityUtil.getLoginUserVo().getUser().getMerId();
         if (lotteryActivityService.updateActivity(request, merId)) {
-            return CommonResult.success("编辑成功，需重新审核");
+            return CommonResult.success(new OperationResponse("编辑成功，需重新审核"));
         }
         return CommonResult.failed("编辑失败");
     }
@@ -73,22 +74,22 @@ public class MerchantLotteryController {
 
     @ApiOperation(value = "开启/关闭活动")
     @RequestMapping(value = "/activity/switch/{id}", method = RequestMethod.POST)
-    public CommonResult<String> switchActivity(@PathVariable Integer id) {
+    public CommonResult<OperationResponse> switchActivity(@PathVariable Integer id) {
         Integer merId = SecurityUtil.getLoginUserVo().getUser().getMerId();
         if (lotteryActivityService.switchActivity(id, merId)) {
-            return CommonResult.success();
+            return CommonResult.success(new OperationResponse("操作成功"));
         }
-        return CommonResult.failed();
+        return CommonResult.failed("操作失败");
     }
 
     @ApiOperation(value = "删除活动")
-    @RequestMapping(value = "/activity/delete/{id}", method = RequestMethod.DELETE)
-    public CommonResult<String> deleteActivity(@PathVariable Integer id) {
+    @RequestMapping(value = "/activity/delete/{id}", method = RequestMethod.POST)
+    public CommonResult<OperationResponse> deleteActivity(@PathVariable Integer id) {
         Integer merId = SecurityUtil.getLoginUserVo().getUser().getMerId();
         if (lotteryActivityService.deleteActivity(id, merId)) {
-            return CommonResult.success();
+            return CommonResult.success(new OperationResponse("删除成功"));
         }
-        return CommonResult.failed();
+        return CommonResult.failed("删除失败");
     }
 
     @ApiOperation(value = "当前期参与者列表")
@@ -113,10 +114,10 @@ public class MerchantLotteryController {
 
     @ApiOperation(value = "核销兑奖")
     @RequestMapping(value = "/redeem/{recordId}", method = RequestMethod.POST)
-    public CommonResult<String> redeem(@PathVariable Integer recordId) {
+    public CommonResult<OperationResponse> redeem(@PathVariable Integer recordId) {
         Integer merId = SecurityUtil.getLoginUserVo().getUser().getMerId();
         if (lotteryRecordService.redeemPrize(recordId, merId)) {
-            return CommonResult.success("兑奖成功");
+            return CommonResult.success(new OperationResponse("兑奖成功"));
         }
         return CommonResult.failed("兑奖失败");
     }

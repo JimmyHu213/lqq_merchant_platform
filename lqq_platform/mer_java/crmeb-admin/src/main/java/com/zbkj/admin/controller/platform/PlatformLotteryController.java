@@ -5,6 +5,7 @@ import com.zbkj.common.model.lottery.LotteryRecord;
 import com.zbkj.common.page.CommonPage;
 import com.zbkj.common.request.LotteryAuditRequest;
 import com.zbkj.common.request.PageParamRequest;
+import com.zbkj.common.response.OperationResponse;
 import com.zbkj.common.result.CommonResult;
 import com.zbkj.service.service.LotteryActivityService;
 import com.zbkj.service.service.LotteryRecordService;
@@ -44,29 +45,29 @@ public class PlatformLotteryController {
 
     @ApiOperation(value = "审核活动")
     @RequestMapping(value = "/activity/audit", method = RequestMethod.POST)
-    public CommonResult<String> auditActivity(@RequestBody @Validated LotteryAuditRequest request) {
+    public CommonResult<OperationResponse> auditActivity(@RequestBody @Validated LotteryAuditRequest request) {
         if (lotteryActivityService.auditActivity(request.getActivityId(), request.getAuditStatus(), request.getReason())) {
-            return CommonResult.success();
+            return CommonResult.success(new OperationResponse("审核完成"));
         }
-        return CommonResult.failed();
+        return CommonResult.failed("审核失败");
     }
 
     @ApiOperation(value = "强制关闭活动")
     @RequestMapping(value = "/activity/close/{id}", method = RequestMethod.POST)
-    public CommonResult<String> closeActivity(@PathVariable Integer id) {
+    public CommonResult<OperationResponse> closeActivity(@PathVariable Integer id) {
         if (lotteryActivityService.forceCloseActivity(id)) {
-            return CommonResult.success();
+            return CommonResult.success(new OperationResponse("已关闭"));
         }
-        return CommonResult.failed();
+        return CommonResult.failed("关闭失败");
     }
 
     @ApiOperation(value = "删除活动")
-    @RequestMapping(value = "/activity/delete/{id}", method = RequestMethod.DELETE)
-    public CommonResult<String> deleteActivity(@PathVariable Integer id) {
+    @RequestMapping(value = "/activity/delete/{id}", method = RequestMethod.POST)
+    public CommonResult<OperationResponse> deleteActivity(@PathVariable Integer id) {
         if (lotteryActivityService.platformDeleteActivity(id)) {
-            return CommonResult.success();
+            return CommonResult.success(new OperationResponse("删除成功"));
         }
-        return CommonResult.failed();
+        return CommonResult.failed("删除失败");
     }
 
     @ApiOperation(value = "所有抽奖记录")
