@@ -180,13 +180,33 @@
 [PENDING] 2.8 - 微信小程序配置 (AppID/Secret/支付商户号) — 需用户提供实际配置值
 
 ## Phase 3: 自定义模块开发 (B1-B7)
-[PENDING] 3.1 - 自动锁客 (B1)
-[PENDING] 3.2 - 微信多方分账 (B2) ★需人工审核
+[DONE] 3.6 - 优惠券转赠 (B6) (2026-04-04)
+  文件: CouponUser +transferFromUid, CouponTransferRequest, CouponUserService/Impl, CouponController
+  SQL: 007_coupon_transfer.sql
+  接口: POST api/front/coupon/transfer
+[DONE] 3.4 - LBS 附近搜索 (B4) (2026-04-04)
+  文件: MerchantMoveSearchRequest +lat/lon, MerchantSearchResponse +distance, DistanceUtil(Haversine), MerchantServiceImpl
+  接口: GET api/front/merchant/search/list (扩展，传经纬度按距离排序)
+  无需SQL迁移 (Merchant 已有 latitude/longitude)
+[DONE] 3.5 - 线下核销 (B5) — JAVA-MER 已有完整功能，无需开发
+  已有: OrderConstants.ORDER_STATUS_AWAIT_VERIFICATION=3, MerchantOrder.verifyCode, VerificationRecord表
+  已有: OrderServiceImpl.verificationOrderByCode(), EmployeeOrderController
+[DONE] 3.7 - 抽奖系统 (B7) (2026-04-04)
+  新表: eb_lottery_activity (含 audit_status 审核), eb_lottery_record
+  SQL: 008_lottery_system.sql
+  文件: LotteryActivity/LotteryRecord Entity+DAO, LotteryActivityService/Impl, LotteryRecordService/Impl
+  文件: LotteryController(front), MerchantLotteryController, PlatformLotteryController, LotteryDrawTask
+  文件: LotteryActivityRequest, LotteryAuditRequest, LotteryParticipateRequest DTO
+  接口: 21个 (用户端5 + 商户端9 + 平台端7)
+  定时任务: LotteryDrawTask (每5分钟开奖, Quartz注册)
+[DONE] 3.1 - 自动锁客 (B1) (2026-04-04)
+  SQL: 009_lock_customer.sql (eb_user +locked_merchant_id, +locked_merchant_time)
+  文件: User +2字段, UserService/Impl +lockCustomer(), PayServiceImpl(支付回调Hook)
+  文件: MerchantLockCustomerController, PlatformLockCustomerController
+  接口: 商户端锁客列表+统计, 平台端全局锁客记录
+  逻辑: 支付成功→检查未锁客→绑定首个消费商户(只锁一次,乐观锁)
 [PENDING] 3.3 - 推广员角色 (B3)
-[PENDING] 3.4 - LBS 附近搜索 (B4)
-[PENDING] 3.5 - 线下核销 (B5)
-[PENDING] 3.6 - 优惠券转赠 (B6)
-[PENDING] 3.7 - 抽奖系统 (B7)
+[PENDING] 3.2 - 微信多方分账 (B2) ★需人工审核
 
 ## Phase 4: 前端适配
 [PENDING] 4.1 - mer_uniapp 移动端适配
@@ -210,3 +230,9 @@
 # [2026-04-02] [Generator] - Phase 1 环境搭建完成 (Docker + MySQL + Redis + Java 11 兼容)
 # [2026-04-03] [Planner] - 完成 mlqApi 全模块扫描，功能映射分类完成 (12直接移植 + 7独立开发)
 # [2026-04-03] [Generator] - Phase 2 完成: Merchant实体扩展(24字段), 状态码映射, 6个迁移SQL脚本, 编译通过
+# [2026-04-04] [Generator] - Phase 2 字段回滚: 移除不规范的拼音缩写字段，等待重新设计
+# [2026-04-04] [Generator] - Phase 3 B6完成: 优惠券转赠 (commit 2eb82b1)
+# [2026-04-04] [Generator] - Phase 3 B4完成: LBS附近搜索 (commit dacddd7)
+# [2026-04-04] [Generator] - Phase 3 B5跳过: JAVA-MER已有完整线下核销功能
+# [2026-04-04] [Generator] - Phase 3 B7完成: 抽奖系统21个接口 (commit 1d04f61, 72cf02b)
+# [2026-04-04] [Generator] - Phase 3 B1完成: 自动锁客 (待commit)

@@ -202,6 +202,15 @@ public interface UserService extends IService<User> {
      */
     Boolean updateIntegral(Integer uid, Integer integral, String type);
 
+    // [LQQ-迁移] 自动锁客
+    /**
+     * 锁定用户到商户（首次消费自动绑定，只锁一次）
+     * @param uid 用户ID
+     * @param merId 商户ID
+     * @return Boolean
+     */
+    Boolean lockCustomer(Integer uid, Integer merId);
+
     /**
      * 更新用户佣金
      *
