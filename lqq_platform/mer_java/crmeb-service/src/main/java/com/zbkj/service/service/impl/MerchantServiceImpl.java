@@ -36,6 +36,7 @@ import com.zbkj.common.result.CommonResultCode;
 import com.zbkj.common.result.MerchantResultCode;
 import com.zbkj.common.utils.CrmebDateUtil;
 import com.zbkj.common.utils.CrmebUtil;
+import com.zbkj.common.utils.DistanceUtil;
 import com.zbkj.common.utils.RedisUtil;
 import com.zbkj.common.utils.SecurityUtil;
 import com.zbkj.common.vo.DateLimitUtilVo;
@@ -944,6 +945,8 @@ public class MerchantServiceImpl extends ServiceImpl<MerchantDao, Merchant> impl
             return CommonPage.copyPageInfo(page, CollUtil.newArrayList());
         }
         Integer userId = userService.getUserId();
+        // [LQQ-迁移] 判断是否启用 LBS 距离计算
+        boolean hasLocation = StrUtil.isNotBlank(request.getLatitude()) && StrUtil.isNotBlank(request.getLongitude());
         List<MerchantSearchResponse> responseList = merchantList.stream().map(merchant -> {
             MerchantSearchResponse response = new MerchantSearchResponse();
             BeanUtils.copyProperties(merchant, response);
@@ -956,8 +959,25 @@ public class MerchantServiceImpl extends ServiceImpl<MerchantDao, Merchant> impl
             if (userId > 0) {
                 response.setIsCollect(userMerchantCollectService.isCollect(userId, merchant.getId()));
             }
+            // [LQQ-迁移] LBS: 填充坐标和距离
+            response.setLatitude(merchant.getLatitude());
+            response.setLongitude(merchant.getLongitude());
+            if (hasLocation) {
+                response.setDistance(DistanceUtil.calculateDistance(
+                        request.getLatitude(), request.getLongitude(),
+                        merchant.getLatitude(), merchant.getLongitude()));
+            }
             return response;
         }).collect(Collectors.toList());
+        // [LQQ-迁移] LBS: 传入经纬度时按距离升序排序
+        if (hasLocation) {
+            responseList.sort((a, b) -> {
+                if (a.getDistance() == null && b.getDistance() == null) return 0;
+                if (a.getDistance() == null) return 1;
+                if (b.getDistance() == null) return -1;
+                return a.getDistance().compareTo(b.getDistance());
+            });
+        }
         return CommonPage.copyPageInfo(page, responseList);
     }
 

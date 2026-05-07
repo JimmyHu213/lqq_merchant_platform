@@ -814,5 +814,53 @@ public class CouponUserServiceImpl extends ServiceImpl<CouponUserDao, CouponUser
         return dao.findManyPlatByUidAndMerIdAndMoneyAndProList(map);
     }
 
+    // [LQQ-迁移] 优惠券转赠
+    @Override
+    public Boolean transferCoupon(Integer couponUserId, Integer recipientUid) {
+        // 1. 获取当前用户（转赠人）
+        Integer currentUid = userService.getUserIdException();
+
+        // 2. 不能转赠给自己
+        if (currentUid.equals(recipientUid)) {
+            throw new CrmebException("不能转赠给自己");
+        }
+
+        // 3. 验证接收人存在
+        User recipient = userService.getById(recipientUid);
+        if (ObjectUtil.isNull(recipient)) {
+            throw new CrmebException("接收人不存在");
+        }
+
+        // 4. 查询优惠券
+        CouponUser couponUser = dao.selectById(couponUserId);
+        if (ObjectUtil.isNull(couponUser)) {
+            throw new CrmebException("优惠券不存在");
+        }
+
+        // 5. 验证归属（当前用户必须是优惠券持有者）
+        if (!currentUid.equals(couponUser.getUid())) {
+            throw new CrmebException("该优惠券不属于当前用户");
+        }
+
+        // 6. 验证优惠券状态（必须未使用）
+        if (!couponUser.getStatus().equals(CouponConstants.STORE_COUPON_USER_STATUS_USABLE)) {
+            throw new CrmebException("优惠券已使用或已失效，无法转赠");
+        }
+
+        // 7. 验证优惠券未过期
+        if (ObjectUtil.isNotNull(couponUser.getEndTime()) && couponUser.getEndTime().getTime() <= System.currentTimeMillis()) {
+            throw new CrmebException("优惠券已过期，无法转赠");
+        }
+
+        // 8. 执行转赠：更新持有者 + 记录转赠来源，带乐观锁条件
+        LambdaUpdateWrapper<CouponUser> wrapper = Wrappers.lambdaUpdate();
+        wrapper.set(CouponUser::getUid, recipientUid);
+        wrapper.set(CouponUser::getTransferFromUid, currentUid);
+        wrapper.set(CouponUser::getUpdateTime, DateUtil.date());
+        wrapper.eq(CouponUser::getId, couponUserId);
+        wrapper.eq(CouponUser::getStatus, CouponConstants.STORE_COUPON_USER_STATUS_USABLE);
+        return update(wrapper);
+    }
+
 }
 

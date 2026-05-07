@@ -12,6 +12,7 @@
 - **移动端前端**: `./lqq_platform/mer_uniapp/` (UniApp 跨平台)
 - **业务逻辑参考 (mlqApi，只读)**: `./mlqApi/`
 - **旧管理后台参考 (mlqAdmin，只读)**: `./mlqAdmin/`
+- **旧用户端小程序参考 (mlqMiniProgram，只读)**: `./mlqMiniProgram/` (原生微信小程序)
 - **其他参考资料（只读）**: `./其他资料/`、`./doc/`
 
 ## 开发方式
@@ -137,6 +138,13 @@ mer_java/
 | user_recharge_order | UserRecharge | 充值 |
 
 ## 编码规范
+- **命名规范（强制）**: 所有新增的字段名、方法名、API 路径、变量名必须使用**清晰的英文命名**，具有自解释性。严禁使用 mlqApi 中的拼音缩写（如 fszk、skzk、qyzk、gby、sst、zsq 等）。示例：
+  - `fszk` → `merchantReturnRate`
+  - `skzk` → `lockCustomerRate`
+  - `zzrId` → `transferFromUid`
+  - `gby` → `getFollowerList`
+  - `zsq` → `transferCoupon`
+  - API: `/wx/sh/xss` → `api/front/merchant/nearby`
 - 所有后端开发在 `./lqq_platform/mer_java/` 目录内完成
 - Java 代码遵循 JAVA-MER 已有模式 (MyBatis Plus)，不引入新的设计模式
 - 新增 Entity 放在 `crmeb-common/src/main/java/com/zbkj/common/model/{模块}/` 下

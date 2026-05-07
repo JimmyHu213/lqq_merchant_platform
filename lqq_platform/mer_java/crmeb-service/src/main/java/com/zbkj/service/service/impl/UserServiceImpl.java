@@ -972,6 +972,25 @@ public class UserServiceImpl extends ServiceImpl<UserDao, User> implements UserS
         return update(wrapper);
     }
 
+    // [LQQ-迁移] 自动锁客
+    @Override
+    public Boolean lockCustomer(Integer uid, Integer merId) {
+        User user = getById(uid);
+        if (ObjectUtil.isNull(user)) {
+            return false;
+        }
+        // 已锁客则不再修改
+        if (ObjectUtil.isNotNull(user.getLockedMerchantId())) {
+            return true;
+        }
+        UpdateWrapper<User> wrapper = Wrappers.update();
+        wrapper.set("locked_merchant_id", merId);
+        wrapper.set("locked_merchant_time", DateUtil.date());
+        wrapper.eq("id", uid);
+        wrapper.isNull("locked_merchant_id"); // 乐观锁：防止并发重复锁客
+        return update(wrapper);
+    }
+
     /**
      * 根据用户id获取自己本身的推广用户
      *

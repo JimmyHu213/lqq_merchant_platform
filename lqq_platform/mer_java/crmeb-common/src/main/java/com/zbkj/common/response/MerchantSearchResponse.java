@@ -74,4 +74,14 @@ public class MerchantSearchResponse implements Serializable {
     @ApiModelProperty(value = "商户PC品牌好店封面图片")
     private String pcGoodStoreCoverImage;
 
+    // [LQQ-迁移] LBS 附近搜索
+    @ApiModelProperty(value = "距离(km)，传入经纬度时返回")
+    private Double distance;
+
+    @ApiModelProperty(value = "商户纬度")
+    private String latitude;
+
+    @ApiModelProperty(value = "商户经度")
+    private String longitude;
+
 }

@@ -130,6 +130,13 @@ public class User implements Serializable {
     @ApiModelProperty(value = "下级人数")
     private Integer spreadCount;
 
+    // [LQQ-迁移] 自动锁客
+    @ApiModelProperty(value = "锁客商户ID，首次消费自动绑定")
+    private Integer lockedMerchantId;
+
+    @ApiModelProperty(value = "锁客时间")
+    private Date lockedMerchantTime;
+
     @ApiModelProperty(value = "注册类型：wechat-公众号，routine-小程序，H5-H5,iosWx-微信ios，androidWx-微信安卓，ios-ios")
     private String registerType;
 

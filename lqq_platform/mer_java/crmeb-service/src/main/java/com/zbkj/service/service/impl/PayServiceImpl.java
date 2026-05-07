@@ -806,6 +806,10 @@ public class PayServiceImpl implements PayService {
             }
             // 用户信息变更
             userService.paySuccessChange(user.getId(), user.getIsPromoter());
+            // [LQQ-迁移] 自动锁客：首次消费绑定到商户
+            if (ObjectUtil.isNull(user.getLockedMerchantId()) && CollUtil.isNotEmpty(orderList)) {
+                userService.lockCustomer(user.getId(), orderList.get(0).getMerId());
+            }
             // 积分记录
             if (CollUtil.isNotEmpty(integralList)) {
                 userIntegralRecordService.saveBatch(integralList);
