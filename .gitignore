@@ -17,8 +17,8 @@ docker/nginx/
 
 # Environment
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
 
 # Dependencies
 vendor/
@@ -52,3 +52,10 @@ redis-data/
 
 # Compiled frontend assets
 **/dist/
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Build output
+build/

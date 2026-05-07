@@ -167,7 +167,6 @@ mer_java/
 - 不要修改 Spring Security 核心认证链
 - 不要在代码中硬编码密钥或敏感信息
 - 分账金额计算不允许 AI 自主决定，必须由人工确认
-- 不要推送代码到远程仓库（本地 Git 管理）
 
 ## 需要人工审批的操作（所有 Agent 必须遵守）
 以下操作**必须**获得用户明确同意后才能执行：
@@ -178,3 +177,26 @@ mer_java/
 5. **安装或卸载系统级依赖**（mvn 新增/删除依赖、apt install 等）
 
 违反此规则的 Agent 输出将被 Evaluator 标记为 REJECTED。
+
+## 通用编码原则
+
+### Think Before Coding
+- State assumptions explicitly. If uncertain, ask.
+- If multiple interpretations exist, present them — don't pick silently.
+- If a simpler approach exists, say so.
+
+### Simplicity First
+- Minimum code that solves the problem. Nothing speculative.
+- No abstractions for single-use code.
+- No error handling for impossible scenarios.
+
+### Surgical Changes
+- Touch only what you must. Clean up only your own mess.
+- Match existing style, even if you'd do it differently.
+- Remove imports/variables/functions that YOUR changes made unused.
+
+### Git Workflow
+- Conventional Commits: `feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `test:`, `ci:`, `build:`, `perf:`, `style:`
+- Keep PRs small and focused — one concern per PR.
+- Write meaningful commit messages explaining why, not what.
+- Never force-push to shared branches.
