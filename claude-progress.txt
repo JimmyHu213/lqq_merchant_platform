@@ -206,7 +206,18 @@
   接口: 商户端锁客列表+统计, 平台端全局锁客记录
   逻辑: 支付成功→检查未锁客→绑定首个消费商户(只锁一次,乐观锁)
 [PENDING] 3.3 - 推广员角色 (B3)
-[PENDING] 3.2 - 微信多方分账 (B2) ★需人工审核
+[DONE] 3.2 - 微信多方分账 (B2) ★需人工审核 (2026-05-08)
+  新Entity: WechatProfitSharingRecord (eb_wechat_profit_sharing_record 表)
+  新DAO: WechatProfitSharingRecordDao
+  新Service: WechatProfitSharingRecordService/Impl, LqqProfitSharingService/Impl
+  修改: Merchant.java +24个LQQ字段(分账/运营/KYC), PayServiceImpl(支付回调Hook)
+  新Controller: PlatformProfitSharingController, MerchantProfitSharingController
+  新Task: LqqProfitSharingTask (每5分钟执行分账)
+  SQL: 011_wechat_profit_sharing.sql
+  接口: 平台端2个(列表+详情) + 商户端2个(列表+详情)
+  分润公式 [需审核]: 基础金额=订单额*(1-fszk%), 锁客=基础*skzk%, 推荐人=基础*返佣%, 平台=剩余
+  金额计算: 全部使用BigDecimal, setScale(2, RoundingMode.DOWN)
+  编译验证: mvn clean install BUILD SUCCESS
 
 ## Phase 4: 前端适配
 [PENDING] 4.1 - mer_uniapp 移动端适配
@@ -236,3 +247,4 @@
 # [2026-04-04] [Generator] - Phase 3 B5跳过: JAVA-MER已有完整线下核销功能
 # [2026-04-04] [Generator] - Phase 3 B7完成: 抽奖系统21个接口 (commit 1d04f61, 72cf02b)
 # [2026-04-04] [Generator] - Phase 3 B1完成: 自动锁客 (待commit)
+# [2026-05-08] [Generator] - Phase 3 B2完成: 微信多方分账 [需审核] (Merchant扩展24字段, 分账记录表, 分账服务+定时任务+管理端接口, BUILD SUCCESS)

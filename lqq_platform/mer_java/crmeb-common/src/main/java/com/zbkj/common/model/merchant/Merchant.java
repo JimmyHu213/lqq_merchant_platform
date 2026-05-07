@@ -165,4 +165,81 @@ public class Merchant implements Serializable {
 
     @ApiModelProperty(value = "商户是否强制关闭:0-否，1-强制关闭")
     private Boolean isForceShutdown;
+
+    // [LQQ-迁移] 分账相关字段
+    @ApiModelProperty(value = "[LQQ] 返商折扣(百分比)，用于分润基础金额计算")
+    private BigDecimal fszk;
+
+    @ApiModelProperty(value = "[LQQ] 签约折扣(百分比)")
+    private BigDecimal qyzk;
+
+    @ApiModelProperty(value = "[LQQ] 锁客折扣(百分比)，锁客商铺分润比例")
+    private BigDecimal skzk;
+
+    @ApiModelProperty(value = "[LQQ] 是否启用微信分账: 0-否, 1-是")
+    private Boolean isProfitSharing;
+
+    @ApiModelProperty(value = "[LQQ] 微信子商户号(特约商户)")
+    private String wxSubMchId;
+
+    @ApiModelProperty(value = "[LQQ] 微信服务商商户号")
+    private String wxServiceMchId;
+
+    // [LQQ-迁移] 业务运营字段
+    @ApiModelProperty(value = "[LQQ] 商铺二维码编号")
+    private String qrCodeId;
+
+    @ApiModelProperty(value = "[LQQ] 每笔订单发券数量")
+    private Integer couponPerOrder;
+
+    @ApiModelProperty(value = "[LQQ] 营业开始时间(HH:mm)")
+    private String businessHoursStart;
+
+    @ApiModelProperty(value = "[LQQ] 营业结束时间(HH:mm)")
+    private String businessHoursEnd;
+
+    @ApiModelProperty(value = "[LQQ] 营业状态: 0-休息, 1-营业")
+    private Integer businessStatus;
+
+    @ApiModelProperty(value = "[LQQ] 所属商圈")
+    private String businessDistrict;
+
+    @ApiModelProperty(value = "[LQQ] 经营范围")
+    private String businessScope;
+
+    @ApiModelProperty(value = "[LQQ] 店内图(多张逗号分隔)")
+    private String interiorImage;
+
+    // [LQQ-迁移] 推荐人字段
+    @ApiModelProperty(value = "[LQQ] 推荐人ID(推广员userId)")
+    private Integer referrerId;
+
+    @ApiModelProperty(value = "[LQQ] 推荐人名称")
+    private String referrerName;
+
+    // [LQQ-迁移] KYC扩展字段
+    @ApiModelProperty(value = "[LQQ] 统一社会信用代码/注册号")
+    private String licenseNumber;
+
+    @ApiModelProperty(value = "[LQQ] 营业执照图片URL")
+    private String licenseImage;
+
+    @ApiModelProperty(value = "[LQQ] 法人身份证号")
+    private String legalPersonIdNumber;
+
+    @ApiModelProperty(value = "[LQQ] 法人身份证正面照URL")
+    private String legalPersonIdFront;
+
+    @ApiModelProperty(value = "[LQQ] 法人身份证反面照URL")
+    private String legalPersonIdBack;
+
+    // [LQQ-迁移] 统计字段
+    @ApiModelProperty(value = "[LQQ] 评论平均分(1-5)")
+    private BigDecimal reviewScore;
+
+    @ApiModelProperty(value = "[LQQ] 评论数量")
+    private Integer reviewCount;
+
+    @ApiModelProperty(value = "[LQQ] 浏览量")
+    private Integer viewCount;
 }

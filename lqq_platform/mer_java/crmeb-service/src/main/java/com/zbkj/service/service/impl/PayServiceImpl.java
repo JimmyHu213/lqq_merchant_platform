@@ -159,6 +159,9 @@ public class PayServiceImpl implements PayService {
     private MerchantMemberLevelService merchantMemberLevelService;
     @Autowired
     private UserClosingService userClosingService;
+    // [LQQ-迁移] 微信多方分账服务
+    @Autowired
+    private LqqProfitSharingService lqqProfitSharingService;
 
     /**
      * 获取支付配置
@@ -647,6 +650,13 @@ public class PayServiceImpl implements PayService {
                 profitSharingList.add(orderProfitSharing);
                 merchantBillList.add(merchantBill);
                 billList.addAll(platBillList);
+
+                // [LQQ-迁移] 生成微信多方分账记录（锁客商户+推荐人+平台三方分润）
+                try {
+                    lqqProfitSharingService.createProfitSharingRecords(merchantOrder);
+                } catch (Exception e) {
+                    logger.error("LQQ分账记录生成失败, orderNo={}, error={}", merchantOrder.getOrderNo(), e.getMessage(), e);
+                }
             }
             // 预约订单-上门服务订单-自动生成工单
             if (merchantOrder.getSecondType().equals(OrderConstants.ORDER_SECOND_TYPE_RESERVATION) && merchantOrder.getShippingType().equals(OrderConstants.ORDER_SHIPPING_TYPE_HOME_SERVICE)) {
