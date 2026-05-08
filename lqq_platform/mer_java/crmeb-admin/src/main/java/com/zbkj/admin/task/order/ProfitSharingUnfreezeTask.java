@@ -2,24 +2,31 @@ package com.zbkj.admin.task.order;
 
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.ObjectUtil;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.zbkj.common.constants.BrokerageRecordConstants;
 import com.zbkj.common.constants.Constants;
 import com.zbkj.common.model.order.WechatProfitSharingRecord;
 import com.zbkj.common.model.user.User;
 import com.zbkj.common.model.user.UserBrokerageRecord;
 import com.zbkj.common.utils.CrmebDateUtil;
+import com.zbkj.common.utils.RedisUtil;
 import com.zbkj.service.service.UserBrokerageRecordService;
 import com.zbkj.service.service.UserService;
 import com.zbkj.service.service.WechatProfitSharingRecordService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 /**
  * [LQQ-迁移] 佣金解冻定时任务
@@ -36,6 +43,16 @@ public class ProfitSharingUnfreezeTask {
 
     private static final Logger logger = LoggerFactory.getLogger(ProfitSharingUnfreezeTask.class);
 
+    // [LQQ-迁移] 分布式锁常量
+    private static final String LOCK_KEY = "lock:profit_sharing:unfreeze";
+    private static final long LOCK_EXPIRE_SECONDS = 600L; // 10分钟过期
+    private static final String UNLOCK_LUA_SCRIPT =
+            "if redis.call('get', KEYS[1]) == ARGV[1] then " +
+            "  return redis.call('del', KEYS[1]) " +
+            "else " +
+            "  return 0 " +
+            "end";
+
     @Autowired
     private WechatProfitSharingRecordService recordService;
     @Autowired
@@ -44,6 +61,8 @@ public class ProfitSharingUnfreezeTask {
     private UserService userService;
     @Autowired
     private TransactionTemplate transactionTemplate;
+    @Autowired
+    private RedisUtil redisUtil;
 
     /**
      * 执行佣金解冻
@@ -51,6 +70,16 @@ public class ProfitSharingUnfreezeTask {
      */
     public void execute() {
         logger.info("---ProfitSharingUnfreezeTask--- 开始执行佣金解冻: {}", CrmebDateUtil.nowDateTime());
+
+        // [LQQ-迁移] Redis 分布式锁，防止多实例重复解冻
+        String lockValue = UUID.randomUUID().toString();
+        Boolean locked = redisUtil.getRedisTemplate().opsForValue()
+                .setIfAbsent(LOCK_KEY, lockValue, LOCK_EXPIRE_SECONDS, TimeUnit.SECONDS);
+        if (!Boolean.TRUE.equals(locked)) {
+            logger.info("---ProfitSharingUnfreezeTask--- 已有其他实例在执行，本次跳过");
+            return;
+        }
+
         try {
             List<WechatProfitSharingRecord> records = recordService.getUnfreezeReadyRecords(200);
             if (CollUtil.isEmpty(records)) {
@@ -73,6 +102,14 @@ public class ProfitSharingUnfreezeTask {
         } catch (Exception e) {
             e.printStackTrace();
             logger.error("ProfitSharingUnfreezeTask.execute | msg : " + e.getMessage());
+        } finally {
+            // [LQQ-迁移] Lua 脚本释放锁
+            try {
+                DefaultRedisScript<Long> script = new DefaultRedisScript<>(UNLOCK_LUA_SCRIPT, Long.class);
+                redisUtil.getRedisTemplate().execute(script, Collections.singletonList(LOCK_KEY), lockValue);
+            } catch (Exception e) {
+                logger.warn("释放解冻锁异常: {}", e.getMessage());
+            }
         }
     }
 
@@ -121,12 +158,21 @@ public class ProfitSharingUnfreezeTask {
         brokerageRecord.setUpdateTime(new Date());
 
         // 事务: 写入佣金记录 + 更新用户佣金余额 + 标记已解冻
+        // [LQQ-迁移] 使用乐观锁条件 is_unfrozen=0，防止多实例重复解冻
         Boolean result = transactionTemplate.execute(e -> {
+            // 先用乐观锁更新解冻状态，失败说明已被其他实例处理
+            LambdaUpdateWrapper<WechatProfitSharingRecord> wrapper = Wrappers.lambdaUpdate();
+            wrapper.set(WechatProfitSharingRecord::getIsUnfrozen, 1);
+            wrapper.set(WechatProfitSharingRecord::getUpdateTime, new Date());
+            wrapper.eq(WechatProfitSharingRecord::getId, record.getId());
+            wrapper.eq(WechatProfitSharingRecord::getIsUnfrozen, 0); // 乐观锁
+            boolean updated = recordService.update(wrapper);
+            if (!updated) {
+                logger.info("记录 {} 已被其他实例解冻，跳过", record.getId());
+                return Boolean.FALSE;
+            }
             userBrokerageRecordService.save(brokerageRecord);
             userService.updateBrokerage(receiverUserId, record.getAmount(), Constants.OPERATION_TYPE_ADD);
-            record.setIsUnfrozen(1);
-            record.setUpdateTime(new Date());
-            recordService.updateById(record);
             return Boolean.TRUE;
         });
 

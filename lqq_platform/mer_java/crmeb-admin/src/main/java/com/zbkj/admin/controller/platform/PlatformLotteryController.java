@@ -2,6 +2,7 @@ package com.zbkj.admin.controller.platform;
 
 import com.zbkj.common.model.lottery.LotteryActivity;
 import com.zbkj.common.model.lottery.LotteryRecord;
+import com.zbkj.common.response.LotteryRecordResponse;
 import com.zbkj.common.page.CommonPage;
 import com.zbkj.common.request.LotteryAuditRequest;
 import com.zbkj.common.request.PageParamRequest;
@@ -72,13 +73,13 @@ public class PlatformLotteryController {
 
     @ApiOperation(value = "所有抽奖记录")
     @RequestMapping(value = "/record/list", method = RequestMethod.GET)
-    public CommonResult<CommonPage<LotteryRecord>> recordList(@ModelAttribute PageParamRequest pageParamRequest) {
+    public CommonResult<CommonPage<LotteryRecordResponse>> recordList(@ModelAttribute PageParamRequest pageParamRequest) {
         return CommonResult.success(CommonPage.restPage(lotteryRecordService.getPlatformRecords(pageParamRequest)));
     }
 
     @ApiOperation(value = "所有中奖记录")
     @RequestMapping(value = "/winner/list", method = RequestMethod.GET)
-    public CommonResult<CommonPage<LotteryRecord>> winnerList(@ModelAttribute PageParamRequest pageParamRequest) {
+    public CommonResult<CommonPage<LotteryRecordResponse>> winnerList(@ModelAttribute PageParamRequest pageParamRequest) {
         return CommonResult.success(CommonPage.restPage(lotteryRecordService.getPlatformWinners(pageParamRequest)));
     }
 }

@@ -852,7 +852,15 @@ public class CouponUserServiceImpl extends ServiceImpl<CouponUserDao, CouponUser
             throw new CrmebException("优惠券已过期，无法转赠");
         }
 
-        // 8. 执行转赠：更新持有者 + 记录转赠来源，带乐观锁条件
+        // [LQQ-迁移] 8. 接收方持有上限检查（最多21张可用优惠券）
+        Integer recipientCouponCount = dao.selectCount(Wrappers.<CouponUser>lambdaQuery()
+                .eq(CouponUser::getUid, recipientUid)
+                .eq(CouponUser::getStatus, CouponConstants.STORE_COUPON_USER_STATUS_USABLE));
+        if (recipientCouponCount >= 21) {
+            throw new CrmebException("对方持有优惠券已达上限(21张)，无法转赠");
+        }
+
+        // 9. 执行转赠：更新持有者 + 记录转赠来源，带乐观锁条件
         LambdaUpdateWrapper<CouponUser> wrapper = Wrappers.lambdaUpdate();
         wrapper.set(CouponUser::getUid, recipientUid);
         wrapper.set(CouponUser::getTransferFromUid, currentUid);

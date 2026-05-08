@@ -37,6 +37,7 @@ import java.math.RoundingMode;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 
 /**
  * [LQQ-迁移] 溜圈圈多方分账业务 Service 实现
@@ -85,6 +86,14 @@ public class LqqProfitSharingServiceImpl implements LqqProfitSharingService {
     /** Redis 分布式锁 key */
     private static final String LOCK_KEY_EXECUTE = "lock:profit_sharing:execute";
     private static final long LOCK_EXPIRE_SECONDS = 300L; // 5分钟过期
+
+    // [LQQ-迁移] Lua 脚本: 仅当锁值匹配时才删除，防止误删其他实例的锁
+    private static final String UNLOCK_LUA_SCRIPT =
+            "if redis.call('get', KEYS[1]) == ARGV[1] then " +
+            "  return redis.call('del', KEYS[1]) " +
+            "else " +
+            "  return 0 " +
+            "end";
 
     @Autowired
     private RedisUtil redisUtil;
@@ -319,8 +328,10 @@ public class LqqProfitSharingServiceImpl implements LqqProfitSharingService {
     @Override
     public void executePendingProfitSharing() {
         // [LQQ-迁移] Redis 分布式锁，防止多实例重复执行分账
+        // 使用 UUID 作为锁值，释放时用 Lua 脚本比较后删除，防止误删其他实例的锁
+        String lockValue = UUID.randomUUID().toString();
         Boolean locked = redisUtil.getRedisTemplate().opsForValue()
-                .setIfAbsent(LOCK_KEY_EXECUTE, "1", LOCK_EXPIRE_SECONDS, TimeUnit.SECONDS);
+                .setIfAbsent(LOCK_KEY_EXECUTE, lockValue, LOCK_EXPIRE_SECONDS, TimeUnit.SECONDS);
         if (!Boolean.TRUE.equals(locked)) {
             logger.info("分账任务已有其他实例在执行，本次跳过");
             return;
@@ -354,7 +365,8 @@ public class LqqProfitSharingServiceImpl implements LqqProfitSharingService {
                 }
             }
         } finally {
-            redisUtil.delete(LOCK_KEY_EXECUTE);
+            // [LQQ-迁移] Lua 脚本释放锁：仅当锁值匹配当前实例的 UUID 时才删除
+            releaseLock(LOCK_KEY_EXECUTE, lockValue);
         }
     }
 
@@ -688,6 +700,19 @@ public class LqqProfitSharingServiceImpl implements LqqProfitSharingService {
                 record.setFailReason(reason);
                 record.setUpdateTime(new Date());
             }
+        }
+    }
+
+    /**
+     * [LQQ-迁移] 安全释放 Redis 分布式锁
+     * 使用 Lua 脚本保证原子性: 仅当锁值匹配时才删除
+     */
+    private void releaseLock(String lockKey, String lockValue) {
+        try {
+            DefaultRedisScript<Long> script = new DefaultRedisScript<>(UNLOCK_LUA_SCRIPT, Long.class);
+            redisUtil.getRedisTemplate().execute(script, Collections.singletonList(lockKey), lockValue);
+        } catch (Exception e) {
+            logger.warn("释放分布式锁异常: key={}, error={}", lockKey, e.getMessage());
         }
     }
 }

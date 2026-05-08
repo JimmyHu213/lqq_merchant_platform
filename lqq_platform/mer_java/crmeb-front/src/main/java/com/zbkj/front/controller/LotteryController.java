@@ -2,6 +2,7 @@ package com.zbkj.front.controller;
 
 import com.zbkj.common.model.lottery.LotteryActivity;
 import com.zbkj.common.model.lottery.LotteryRecord;
+import com.zbkj.common.response.LotteryRecordResponse;
 import com.zbkj.common.page.CommonPage;
 import com.zbkj.common.request.LotteryParticipateRequest;
 import com.zbkj.common.request.PageParamRequest;
@@ -54,14 +55,14 @@ public class LotteryController {
 
     @ApiOperation(value = "我的抽奖记录")
     @RequestMapping(value = "/my/records", method = RequestMethod.GET)
-    public CommonResult<CommonPage<LotteryRecord>> getMyRecords(@ModelAttribute PageParamRequest pageParamRequest) {
+    public CommonResult<CommonPage<LotteryRecordResponse>> getMyRecords(@ModelAttribute PageParamRequest pageParamRequest) {
         return CommonResult.success(CommonPage.restPage(lotteryRecordService.getMyRecords(pageParamRequest)));
     }
 
     // [LQQ-迁移] 当前期参与者列表
     @ApiOperation(value = "当前期参与者列表")
     @RequestMapping(value = "/participants/{activityId}", method = RequestMethod.GET)
-    public CommonResult<CommonPage<LotteryRecord>> getParticipants(@PathVariable Integer activityId,
+    public CommonResult<CommonPage<LotteryRecordResponse>> getParticipants(@PathVariable Integer activityId,
                                                                     @ModelAttribute PageParamRequest pageParamRequest) {
         return CommonResult.success(CommonPage.restPage(lotteryRecordService.getParticipants(activityId, pageParamRequest)));
     }

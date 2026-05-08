@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.github.pagehelper.PageInfo;
 import com.zbkj.common.model.lottery.LotteryRecord;
 import com.zbkj.common.request.PageParamRequest;
+import com.zbkj.common.response.LotteryRecordResponse;
 
 /**
  * 抽奖参与记录 Service
@@ -21,7 +22,7 @@ public interface LotteryRecordService extends IService<LotteryRecord> {
     /**
      * 获取我的抽奖记录
      */
-    PageInfo<LotteryRecord> getMyRecords(PageParamRequest pageParamRequest);
+    PageInfo<LotteryRecordResponse> getMyRecords(PageParamRequest pageParamRequest);
 
     /**
      * 获取活动当前期参与人数
@@ -43,15 +44,15 @@ public interface LotteryRecordService extends IService<LotteryRecord> {
     /**
      * 获取活动当前期参与者列表
      */
-    PageInfo<LotteryRecord> getParticipants(Integer activityId, PageParamRequest pageParamRequest);
+    PageInfo<LotteryRecordResponse> getParticipants(Integer activityId, PageParamRequest pageParamRequest);
 
     /**
      * 平台端：获取所有抽奖记录
      */
-    PageInfo<LotteryRecord> getPlatformRecords(PageParamRequest pageParamRequest);
+    PageInfo<LotteryRecordResponse> getPlatformRecords(PageParamRequest pageParamRequest);
 
     /**
      * 平台端：获取所有中奖记录
      */
-    PageInfo<LotteryRecord> getPlatformWinners(PageParamRequest pageParamRequest);
+    PageInfo<LotteryRecordResponse> getPlatformWinners(PageParamRequest pageParamRequest);
 }

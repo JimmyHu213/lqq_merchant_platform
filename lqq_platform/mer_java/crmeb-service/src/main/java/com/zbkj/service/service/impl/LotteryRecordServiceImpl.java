@@ -1,5 +1,6 @@
 package com.zbkj.service.service.impl;
 
+import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.util.ObjectUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -15,10 +16,12 @@ import com.zbkj.common.model.lottery.LotteryActivity;
 import com.zbkj.common.model.lottery.LotteryRecord;
 import com.zbkj.common.model.user.User;
 import com.zbkj.common.request.PageParamRequest;
+import com.zbkj.common.response.LotteryRecordResponse;
 import com.zbkj.service.dao.LotteryRecordDao;
 import com.zbkj.service.service.LotteryActivityService;
 import com.zbkj.service.service.LotteryRecordService;
 import com.zbkj.service.service.UserService;
+import org.springframework.beans.BeanUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -106,14 +109,15 @@ public class LotteryRecordServiceImpl extends ServiceImpl<LotteryRecordDao, Lott
     }
 
     @Override
-    public PageInfo<LotteryRecord> getMyRecords(PageParamRequest pageParamRequest) {
+    public PageInfo<LotteryRecordResponse> getMyRecords(PageParamRequest pageParamRequest) {
         Integer uid = userService.getUserIdException();
         Page<LotteryRecord> page = PageHelper.startPage(pageParamRequest.getPage(), pageParamRequest.getLimit());
         LambdaQueryWrapper<LotteryRecord> lqw = Wrappers.lambdaQuery();
         lqw.eq(LotteryRecord::getUid, uid);
         lqw.orderByDesc(LotteryRecord::getCreateTime);
         List<LotteryRecord> list = dao.selectList(lqw);
-        return new PageInfo<>(list);
+        PageInfo<LotteryRecord> rawPage = new PageInfo<>(list);
+        return convertToResponsePage(rawPage);
     }
 
     @Override
@@ -216,7 +220,7 @@ public class LotteryRecordServiceImpl extends ServiceImpl<LotteryRecordDao, Lott
     }
 
     @Override
-    public PageInfo<LotteryRecord> getParticipants(Integer activityId, PageParamRequest pageParamRequest) {
+    public PageInfo<LotteryRecordResponse> getParticipants(Integer activityId, PageParamRequest pageParamRequest) {
         LotteryActivity activity = lotteryActivityService.getByIdException(activityId);
         String periodNumber = activityId + "-" + String.format("%06d", activity.getCurrentPeriod());
         Page<LotteryRecord> page = PageHelper.startPage(pageParamRequest.getPage(), pageParamRequest.getLimit());
@@ -225,26 +229,74 @@ public class LotteryRecordServiceImpl extends ServiceImpl<LotteryRecordDao, Lott
         lqw.eq(LotteryRecord::getPeriodNumber, periodNumber);
         lqw.orderByDesc(LotteryRecord::getCreateTime);
         List<LotteryRecord> list = dao.selectList(lqw);
-        return new PageInfo<>(list);
+        PageInfo<LotteryRecord> rawPage = new PageInfo<>(list);
+        return convertToResponsePage(rawPage);
     }
 
     @Override
-    public PageInfo<LotteryRecord> getPlatformRecords(PageParamRequest pageParamRequest) {
+    public PageInfo<LotteryRecordResponse> getPlatformRecords(PageParamRequest pageParamRequest) {
         Page<LotteryRecord> page = PageHelper.startPage(pageParamRequest.getPage(), pageParamRequest.getLimit());
         LambdaQueryWrapper<LotteryRecord> lqw = Wrappers.lambdaQuery();
         lqw.orderByDesc(LotteryRecord::getCreateTime);
         List<LotteryRecord> list = dao.selectList(lqw);
-        return new PageInfo<>(list);
+        PageInfo<LotteryRecord> rawPage = new PageInfo<>(list);
+        return convertToResponsePage(rawPage);
     }
 
     @Override
-    public PageInfo<LotteryRecord> getPlatformWinners(PageParamRequest pageParamRequest) {
+    public PageInfo<LotteryRecordResponse> getPlatformWinners(PageParamRequest pageParamRequest) {
         Page<LotteryRecord> page = PageHelper.startPage(pageParamRequest.getPage(), pageParamRequest.getLimit());
         LambdaQueryWrapper<LotteryRecord> lqw = Wrappers.lambdaQuery();
         lqw.eq(LotteryRecord::getIsWinner, 1);
         lqw.orderByDesc(LotteryRecord::getCreateTime);
         List<LotteryRecord> list = dao.selectList(lqw);
-        return new PageInfo<>(list);
+        PageInfo<LotteryRecord> rawPage = new PageInfo<>(list);
+        return convertToResponsePage(rawPage);
+    }
+
+    // [LQQ-迁移] 将 LotteryRecord 分页结果转换为 LotteryRecordResponse，关联查询 nickname 和 activityName
+    private PageInfo<LotteryRecordResponse> convertToResponsePage(PageInfo<LotteryRecord> rawPage) {
+        List<LotteryRecord> records = rawPage.getList();
+        if (CollUtil.isEmpty(records)) {
+            PageInfo<LotteryRecordResponse> emptyPage = new PageInfo<>(new ArrayList<>());
+            emptyPage.setTotal(rawPage.getTotal());
+            emptyPage.setPageNum(rawPage.getPageNum());
+            emptyPage.setPageSize(rawPage.getPageSize());
+            return emptyPage;
+        }
+
+        // 批量查询关联的用户和活动，避免 N+1
+        Set<Integer> uidSet = records.stream().map(LotteryRecord::getUid).collect(Collectors.toSet());
+        Set<Integer> activityIdSet = records.stream().map(LotteryRecord::getActivityId).collect(Collectors.toSet());
+
+        Map<Integer, String> userNicknameMap = new HashMap<>();
+        if (CollUtil.isNotEmpty(uidSet)) {
+            List<User> users = userService.listByIds(uidSet);
+            userNicknameMap = users.stream().collect(Collectors.toMap(User::getId, u -> ObjectUtil.isNotNull(u.getNickname()) ? u.getNickname() : "", (a, b) -> a));
+        }
+
+        Map<Integer, String> activityNameMap = new HashMap<>();
+        if (CollUtil.isNotEmpty(activityIdSet)) {
+            List<LotteryActivity> activities = lotteryActivityService.listByIds(activityIdSet);
+            activityNameMap = activities.stream().collect(Collectors.toMap(LotteryActivity::getId, a -> ObjectUtil.isNotNull(a.getName()) ? a.getName() : "", (a, b) -> a));
+        }
+
+        final Map<Integer, String> nickMap = userNicknameMap;
+        final Map<Integer, String> actMap = activityNameMap;
+        List<LotteryRecordResponse> responseList = records.stream().map(record -> {
+            LotteryRecordResponse resp = new LotteryRecordResponse();
+            BeanUtils.copyProperties(record, resp);
+            resp.setNickname(nickMap.getOrDefault(record.getUid(), ""));
+            resp.setActivityName(actMap.getOrDefault(record.getActivityId(), ""));
+            return resp;
+        }).collect(Collectors.toList());
+
+        PageInfo<LotteryRecordResponse> responsePage = new PageInfo<>(responseList);
+        responsePage.setTotal(rawPage.getTotal());
+        responsePage.setPageNum(rawPage.getPageNum());
+        responsePage.setPageSize(rawPage.getPageSize());
+        responsePage.setPages(rawPage.getPages());
+        return responsePage;
     }
 
     @Override

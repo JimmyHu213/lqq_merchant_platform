@@ -2,6 +2,7 @@ package com.zbkj.admin.controller.merchant;
 
 import com.zbkj.common.model.lottery.LotteryActivity;
 import com.zbkj.common.model.lottery.LotteryRecord;
+import com.zbkj.common.response.LotteryRecordResponse;
 import com.zbkj.common.page.CommonPage;
 import com.zbkj.common.request.LotteryActivityRequest;
 import com.zbkj.common.request.PageParamRequest;
@@ -94,7 +95,7 @@ public class MerchantLotteryController {
 
     @ApiOperation(value = "当前期参与者列表")
     @RequestMapping(value = "/participants/{activityId}", method = RequestMethod.GET)
-    public CommonResult<CommonPage<LotteryRecord>> participants(@PathVariable Integer activityId,
+    public CommonResult<CommonPage<LotteryRecordResponse>> participants(@PathVariable Integer activityId,
                                                                  @ModelAttribute PageParamRequest pageParamRequest) {
         return CommonResult.success(CommonPage.restPage(lotteryRecordService.getParticipants(activityId, pageParamRequest)));
     }
