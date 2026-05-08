@@ -37,5 +37,5 @@ CREATE TABLE IF NOT EXISTS `eb_wechat_profit_sharing_record` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='[LQQ] 微信多方分账记录表';
 
 -- 注册分账定时任务
-INSERT INTO `eb_schedule_job` (`bean_name`, `method_name`, `params`, `cron_expression`, `status`, `remark`, `is_del`, `create_time`)
+INSERT INTO `eb_schedule_job` (`bean_name`, `method_name`, `params`, `cron_expression`, `status`, `remark`, `is_delete`, `create_time`)
 VALUES ('LqqProfitSharingTask', 'execute', '', '0 */5 * * * ?', 0, '[LQQ] 微信多方分账定时任务 - 每5分钟执行', 0, NOW());

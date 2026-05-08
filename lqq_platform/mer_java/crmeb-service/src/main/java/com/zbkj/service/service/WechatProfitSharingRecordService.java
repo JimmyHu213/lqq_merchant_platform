@@ -24,4 +24,14 @@ public interface WechatProfitSharingRecordService extends IService<WechatProfitS
      * 根据商户ID获取分账记录
      */
     List<WechatProfitSharingRecord> getByMerId(Integer merId, String date);
+
+    /**
+     * [LQQ-迁移] 根据订单号+商户ID获取分账记录（商户数据隔离）
+     */
+    List<WechatProfitSharingRecord> getByOrderNoAndMerId(String orderNo, Integer merId);
+
+    /**
+     * [LQQ-迁移] 获取可解冻的分账记录（status=1, frozen_until<=NOW(), is_unfrozen=0）
+     */
+    List<WechatProfitSharingRecord> getUnfreezeReadyRecords(int limit);
 }

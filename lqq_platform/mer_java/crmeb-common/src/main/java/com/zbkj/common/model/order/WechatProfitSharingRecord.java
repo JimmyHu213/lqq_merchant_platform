@@ -84,6 +84,13 @@ public class WechatProfitSharingRecord implements Serializable {
     @ApiModelProperty(value = "微信服务商商户号")
     private String serviceMchId;
 
+    // [LQQ-迁移] 佣金冻结与解冻
+    @ApiModelProperty(value = "冻结截止时间(到期后可解冻佣金)")
+    private Date frozenUntil;
+
+    @ApiModelProperty(value = "是否已解冻佣金: 0=否, 1=已解冻")
+    private Integer isUnfrozen;
+
     @ApiModelProperty(value = "创建时间")
     private Date createTime;
 

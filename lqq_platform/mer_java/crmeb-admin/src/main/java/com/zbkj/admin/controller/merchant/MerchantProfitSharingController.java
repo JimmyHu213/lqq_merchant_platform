@@ -41,6 +41,8 @@ public class MerchantProfitSharingController {
     @ApiImplicitParam(name = "orderNo", value = "订单号", required = true, dataType = "String")
     @RequestMapping(value = "/detail/{orderNo}", method = RequestMethod.GET)
     public CommonResult<List<WechatProfitSharingRecord>> detail(@PathVariable String orderNo) {
-        return CommonResult.success(recordService.getByOrderNo(orderNo));
+        // [LQQ-迁移] 商户数据隔离: 只能查看本商户的分账记录
+        Integer merId = SecurityUtil.getLoginUserVo().getUser().getMerId();
+        return CommonResult.success(recordService.getByOrderNoAndMerId(orderNo, merId));
     }
 }

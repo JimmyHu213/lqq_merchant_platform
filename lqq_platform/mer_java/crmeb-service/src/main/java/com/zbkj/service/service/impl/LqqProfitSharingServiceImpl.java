@@ -6,6 +6,7 @@ import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.github.binarywang.wxpay.bean.profitsharing.request.ProfitSharingReceiverRequest;
 import com.github.binarywang.wxpay.bean.profitsharing.request.ProfitSharingRequest;
 import com.github.binarywang.wxpay.bean.profitsharing.request.ProfitSharingUnfreezeRequest;
@@ -14,33 +15,43 @@ import com.github.binarywang.wxpay.exception.WxPayException;
 import com.github.binarywang.wxpay.service.ProfitSharingService;
 import com.github.binarywang.wxpay.service.WxPayService;
 import com.zbkj.common.constants.UserConstants;
+import com.zbkj.common.exception.CrmebException;
 import com.zbkj.common.model.merchant.Merchant;
 import com.zbkj.common.model.order.MerchantOrder;
 import com.zbkj.common.model.order.Order;
 import com.zbkj.common.model.order.WechatProfitSharingRecord;
+import com.zbkj.common.model.promoter.PromoterMerchant;
 import com.zbkj.common.model.user.User;
 import com.zbkj.common.model.user.UserToken;
+import com.zbkj.common.utils.RedisUtil;
 import com.zbkj.common.wxjava.WxPayServiceFactory;
 import com.zbkj.service.service.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
  * [LQQ-迁移] 溜圈圈多方分账业务 Service 实现
  *
- * 业务逻辑参考 mlqApi: BuyerYhqServiceImpl.dxcOrder()
- * 分润公式 [需审核]:
- *   基础金额 = goodsPrice * (1 - fszk)
- *   锁客商铺分润 = 基础金额 * skzk%
- *   推荐人分润 = 基础金额 * 佣金%
- *   平台 = 剩余
+ * 分账流程: 支付成功 → 计算分账池 → 首单判断 → 四方分配 → 微信分账API → 3天后解冻
+ *
+ * 分账池计算 [需审核]:
+ *   分账池 = 实付金额 × 商家让利比例(fszk%)
+ *   首单: 分账池 *= 首单系数(sdfc)
+ *
+ * 四方分配规则 [需审核]:
+ *   1. 裂变佣金 = 分账池 × 裂变比例% (推荐人spreadUid，任何店消费都拿)
+ *   2. 代理佣金 = 分账池 × 代理比例%(PromoterMerchant.commissionRate) (代理人是该商户的代理 AND 消费者是其粉丝)
+ *   3. 锁客分润 = 分账池 × 锁客比例%(lockedMerchant.skzk%) (仅当消费店 ≠ 锁客店)
+ *   4. 平台 = 分账池 - 以上各方总和
  */
 @Service
 public class LqqProfitSharingServiceImpl implements LqqProfitSharingService {
@@ -54,19 +65,35 @@ public class LqqProfitSharingServiceImpl implements LqqProfitSharingService {
     private static final int STATUS_UNFROZEN = 3;
 
     /** 分账接收方类型 */
-    private static final String RECEIVER_LOCKED_MERCHANT = "LOCKED_MERCHANT";
     private static final String RECEIVER_REFERRER = "REFERRER";
-    private static final String RECEIVER_REFERRER_PARENT = "REFERRER_PARENT";
-    private static final String RECEIVER_PROMOTER = "PROMOTER";
+    private static final String RECEIVER_AGENT = "AGENT";
+    private static final String RECEIVER_LOCKED_MERCHANT = "LOCKED_MERCHANT";
     private static final String RECEIVER_PLATFORM = "PLATFORM";
 
     /** 最小分账金额(元) */
     private static final BigDecimal MIN_SHARING_AMOUNT = new BigDecimal("0.01");
+    private static final BigDecimal HUNDRED = new BigDecimal("100");
 
+    /** 首单系数配置key */
+    private static final String CONFIG_FIRST_ORDER_COEFFICIENT = "lqq_first_order_coefficient";
+    /** 裂变佣金比例配置key */
+    private static final String CONFIG_REFERRAL_RATE = "lqq_referral_commission_rate";
+    /** 佣金冻结天数配置key */
+    private static final String CONFIG_FREEZE_DAYS = "lqq_commission_freeze_days";
+    private static final int DEFAULT_FREEZE_DAYS = 3;
+
+    /** Redis 分布式锁 key */
+    private static final String LOCK_KEY_EXECUTE = "lock:profit_sharing:execute";
+    private static final long LOCK_EXPIRE_SECONDS = 300L; // 5分钟过期
+
+    @Autowired
+    private RedisUtil redisUtil;
     @Autowired
     private MerchantService merchantService;
     @Autowired
     private OrderService orderService;
+    @Autowired
+    private MerchantOrderService merchantOrderService;
     @Autowired
     private UserService userService;
     @Autowired
@@ -75,22 +102,32 @@ public class LqqProfitSharingServiceImpl implements LqqProfitSharingService {
     private WechatProfitSharingRecordService recordService;
     @Autowired
     private WxPayServiceFactory wxPayServiceFactory;
+    @Autowired
+    private SystemConfigService systemConfigService;
+    @Autowired
+    private PromoterMerchantService promoterMerchantService;
 
     /**
      * 为订单生成分账记录
-     * [需审核] 金额计算逻辑
+     * [需审核] 金额计算逻辑 — 四方分配
      *
-     * 参考 mlqApi BuyerYhqServiceImpl.dxcOrder():
-     * 1. 获取商户的分账参数(fszk, skzk, isProfitSharing)
-     * 2. 计算基础分账金额 = 订单金额 * (1 - fszk)
-     * 3. 扣除优惠券费用
-     * 4. 锁客商户分润 = 基础金额 * skzk%
-     * 5. 推荐人分润 = 基础金额 * 推荐人佣金%
-     * 6. 平台 = 剩余金额
+     * 流程:
+     * 1. 检查商户是否启用分账
+     * 2. 计算分账池 = 实付金额 × fszk%
+     * 3. 首单翻倍判断
+     * 4. 裂变佣金 → 代理佣金 → 锁客分润 → 平台(剩余)
+     * 5. 校验分润总额 ≤ 分账池
      */
     @Override
     public void createProfitSharingRecords(MerchantOrder merchantOrder) {
-        // 获取商户信息
+        // [LQQ-迁移] 幂等保护: 检查该订单是否已有分账记录，有则跳过
+        List<WechatProfitSharingRecord> existingRecords = recordService.getByOrderNo(merchantOrder.getOrderNo());
+        if (CollUtil.isNotEmpty(existingRecords)) {
+            logger.info("订单 {} 已有 {} 条分账记录，跳过重复生成", merchantOrder.getOrderNo(), existingRecords.size());
+            return;
+        }
+
+        // 获取消费商户信息
         Merchant merchant = merchantService.getByIdException(merchantOrder.getMerId());
         if (ObjectUtil.isNull(merchant.getIsProfitSharing()) || !merchant.getIsProfitSharing()) {
             logger.info("商户 {} 未启用分账，跳过", merchant.getId());
@@ -104,139 +141,159 @@ public class LqqProfitSharingServiceImpl implements LqqProfitSharingService {
             return;
         }
 
-        // [需审核] 分账基础金额计算
+        // [需审核] 分账池 = 实付金额 × 商家让利比例(fszk%)
         BigDecimal fszk = Optional.ofNullable(merchant.getFszk()).orElse(BigDecimal.ZERO);
         BigDecimal orderPayPrice = merchantOrder.getPayPrice();
-        // 基础金额 = 订单金额 * (1 - fszk/100)
-        BigDecimal baseAmount = orderPayPrice.multiply(
-                BigDecimal.ONE.subtract(fszk.divide(new BigDecimal("100"), 4, RoundingMode.HALF_UP))
+        BigDecimal sharingPool = orderPayPrice.multiply(
+                fszk.divide(HUNDRED, 4, RoundingMode.HALF_UP)
         ).setScale(2, RoundingMode.DOWN);
 
-        // 扣除优惠券金额
-        BigDecimal couponPrice = Optional.ofNullable(merchantOrder.getCouponPrice()).orElse(BigDecimal.ZERO);
-        BigDecimal shareableAmount = baseAmount.subtract(couponPrice);
+        if (sharingPool.compareTo(MIN_SHARING_AMOUNT) < 0) {
+            logger.info("订单 {} 分账池金额不足0.01元, 跳过分账", merchantOrder.getOrderNo());
+            return;
+        }
 
-        if (shareableAmount.compareTo(MIN_SHARING_AMOUNT) < 0) {
-            logger.info("订单 {} 可分账金额不足0.01元, 仅执行分账解冻", merchantOrder.getOrderNo());
+        // [需审核] 首单翻倍判断: 用户在该商户的首次消费
+        Integer uid = merchantOrder.getUid();
+        Integer merId = merchantOrder.getMerId();
+        int orderCount = merchantOrderService.count(Wrappers.<MerchantOrder>lambdaQuery()
+                .eq(MerchantOrder::getUid, uid)
+                .eq(MerchantOrder::getMerId, merId));
+        // orderCount 包含当前这笔订单，首单时 count=1
+        if (orderCount <= 1) {
+            BigDecimal sdfc = getFirstOrderCoefficient();
+            if (sdfc.compareTo(BigDecimal.ONE) > 0) {
+                sharingPool = sharingPool.multiply(sdfc).setScale(2, RoundingMode.DOWN);
+                logger.info("订单 {} 首单翻倍: 系数={}, 翻倍后分账池={}", merchantOrder.getOrderNo(), sdfc, sharingPool);
+            }
+        }
+
+        // [需审核] 首单翻倍后分账池不得超过实付金额
+        if (sharingPool.compareTo(orderPayPrice) > 0) {
+            sharingPool = orderPayPrice;
+            logger.warn("订单 {} 分账池超过实付金额，截断为: {}", merchantOrder.getOrderNo(), sharingPool);
+        }
+
+        User buyer = userService.getById(uid);
+        if (ObjectUtil.isNull(buyer)) {
+            logger.error("分账生成失败: 用户不存在 uid={}", uid);
             return;
         }
 
         List<WechatProfitSharingRecord> records = new ArrayList<>();
         BigDecimal totalShared = BigDecimal.ZERO;
 
-        // 1. 锁客商户分润
-        User buyer = userService.getById(merchantOrder.getUid());
-        if (ObjectUtil.isNotNull(buyer) && ObjectUtil.isNotNull(buyer.getLockedMerchantId()) && buyer.getLockedMerchantId() > 0) {
-            Merchant lockedMerchant = merchantService.getByIdException(buyer.getLockedMerchantId());
-            BigDecimal skzk = Optional.ofNullable(lockedMerchant.getSkzk()).orElse(BigDecimal.ZERO);
-            if (skzk.compareTo(BigDecimal.ZERO) > 0) {
-                // [需审核] 锁客分润 = 可分账金额 * skzk%
-                BigDecimal lockAmount = shareableAmount.multiply(
-                        skzk.divide(new BigDecimal("100"), 4, RoundingMode.HALF_UP)
-                ).setScale(2, RoundingMode.DOWN);
-
-                if (lockAmount.compareTo(MIN_SHARING_AMOUNT) >= 0) {
-                    // 获取锁客商户关联用户的openid
-                    String openid = getMerchantAdminOpenid(lockedMerchant);
-                    WechatProfitSharingRecord record = buildRecord(
-                            merchantOrder, platOrder, merchant,
-                            lockedMerchant.getAdminId(), lockedMerchant.getName(),
-                            openid, RECEIVER_LOCKED_MERCHANT,
-                            lockAmount, skzk, shareableAmount, "锁客商家分润"
-                    );
-                    records.add(record);
-                    totalShared = totalShared.add(lockAmount);
-                }
-            }
-        }
-
-        // 2. 推荐人(邀请人)分润
-        if (ObjectUtil.isNotNull(buyer) && ObjectUtil.isNotNull(buyer.getSpreadUid()) && buyer.getSpreadUid() > 0) {
+        // ========== 1. 裂变佣金 = 分账池 × 裂变比例% ==========
+        // 推荐人(user.spreadUid)，任何店消费都拿
+        // [需审核]
+        if (ObjectUtil.isNotNull(buyer.getSpreadUid()) && buyer.getSpreadUid() > 0) {
             User referrer = userService.getById(buyer.getSpreadUid());
             if (ObjectUtil.isNotNull(referrer)) {
-                // 推荐人佣金比例从一级返佣获取（系统配置的分销比例）
-                BigDecimal firstBrokerage = Optional.ofNullable(merchantOrder.getFirstBrokerage()).orElse(BigDecimal.ZERO);
-                if (firstBrokerage.compareTo(BigDecimal.ZERO) > 0) {
-                    // 推荐人获得的是一级返佣金额（已由系统计算好）
-                    // 但在分账场景下，需要从分账基数重新计算
-                    // [需审核] 推荐人分润比例从系统配置获取（一级返佣比例）
-                    BigDecimal referrerRate = BigDecimal.ZERO;
-                    if (orderPayPrice.compareTo(BigDecimal.ZERO) > 0) {
-                        referrerRate = firstBrokerage.multiply(new BigDecimal("100"))
-                                .divide(orderPayPrice, 2, RoundingMode.HALF_UP);
-                    }
-                    BigDecimal referrerAmount = shareableAmount.multiply(
-                            referrerRate.divide(new BigDecimal("100"), 4, RoundingMode.HALF_UP)
+                BigDecimal referralRate = getReferralCommissionRate();
+                if (referralRate.compareTo(BigDecimal.ZERO) > 0) {
+                    BigDecimal referralAmount = sharingPool.multiply(
+                            referralRate.divide(HUNDRED, 4, RoundingMode.HALF_UP)
                     ).setScale(2, RoundingMode.DOWN);
 
-                    if (referrerAmount.compareTo(MIN_SHARING_AMOUNT) >= 0) {
+                    if (referralAmount.compareTo(MIN_SHARING_AMOUNT) >= 0) {
                         String openid = getUserOpenid(referrer.getId());
                         WechatProfitSharingRecord record = buildRecord(
                                 merchantOrder, platOrder, merchant,
                                 referrer.getId(), referrer.getNickname(),
                                 openid, RECEIVER_REFERRER,
-                                referrerAmount, referrerRate, shareableAmount, "推广提成"
+                                referralAmount, referralRate, sharingPool, "裂变佣金"
                         );
                         records.add(record);
-                        totalShared = totalShared.add(referrerAmount);
-                    }
-                }
-
-                // 推荐人上级(二级返佣)
-                if (ObjectUtil.isNotNull(referrer.getSpreadUid()) && referrer.getSpreadUid() > 0) {
-                    BigDecimal secondBrokerage = Optional.ofNullable(merchantOrder.getSecondBrokerage()).orElse(BigDecimal.ZERO);
-                    if (secondBrokerage.compareTo(BigDecimal.ZERO) > 0) {
-                        User referrerParent = userService.getById(referrer.getSpreadUid());
-                        if (ObjectUtil.isNotNull(referrerParent)) {
-                            BigDecimal parentRate = BigDecimal.ZERO;
-                            if (orderPayPrice.compareTo(BigDecimal.ZERO) > 0) {
-                                parentRate = secondBrokerage.multiply(new BigDecimal("100"))
-                                        .divide(orderPayPrice, 2, RoundingMode.HALF_UP);
-                            }
-                            BigDecimal parentAmount = shareableAmount.multiply(
-                                    parentRate.divide(new BigDecimal("100"), 4, RoundingMode.HALF_UP)
-                            ).setScale(2, RoundingMode.DOWN);
-
-                            if (parentAmount.compareTo(MIN_SHARING_AMOUNT) >= 0) {
-                                String openid = getUserOpenid(referrerParent.getId());
-                                WechatProfitSharingRecord record = buildRecord(
-                                        merchantOrder, platOrder, merchant,
-                                        referrerParent.getId(), referrerParent.getNickname(),
-                                        openid, RECEIVER_REFERRER_PARENT,
-                                        parentAmount, parentRate, shareableAmount, "推广上级提成"
-                                );
-                                records.add(record);
-                                totalShared = totalShared.add(parentAmount);
-                            }
-                        }
+                        totalShared = totalShared.add(referralAmount);
                     }
                 }
             }
         }
 
-        // 3. 平台分润 = 可分账金额 - 已分金额
-        // [需审核] 签约折扣与返商折扣差异处理
-        BigDecimal platformAmount = shareableAmount.subtract(totalShared);
-        BigDecimal qyzk = Optional.ofNullable(merchant.getQyzk()).orElse(BigDecimal.ZERO);
-        if (qyzk.compareTo(BigDecimal.ZERO) > 0 && fszk.compareTo(BigDecimal.ZERO) > 0 && qyzk.compareTo(fszk) < 0) {
-            // 签约折扣 < 返商折扣: 平台额外收取差额
-            BigDecimal zkDiff = fszk.subtract(qyzk).divide(new BigDecimal("100"), 4, RoundingMode.HALF_UP);
-            BigDecimal extraPlatform = orderPayPrice.multiply(zkDiff).setScale(2, RoundingMode.DOWN);
-            platformAmount = platformAmount.add(extraPlatform);
+        // ========== 2. 代理佣金 = 分账池 × 代理比例% ==========
+        // 条件: 代理人是该消费商户的代理 AND 消费者是代理人的粉丝(spreadUid链)
+        // [需审核]
+        PromoterMerchant agentBind = promoterMerchantService.getByMerId(merId);
+        if (ObjectUtil.isNotNull(agentBind)) {
+            Integer agentUid = agentBind.getUid();
+            // 验证消费者是代理人的粉丝（spreadUid链上游包含代理人）
+            if (isInSpreadChain(buyer, agentUid)) {
+                BigDecimal agentRate = agentBind.getCommissionRate();
+                if (ObjectUtil.isNotNull(agentRate) && agentRate.compareTo(BigDecimal.ZERO) > 0) {
+                    BigDecimal agentAmount = sharingPool.multiply(
+                            agentRate.divide(HUNDRED, 4, RoundingMode.HALF_UP)
+                    ).setScale(2, RoundingMode.DOWN);
+
+                    if (agentAmount.compareTo(MIN_SHARING_AMOUNT) >= 0) {
+                        User agentUser = userService.getById(agentUid);
+                        String agentName = ObjectUtil.isNotNull(agentUser) ? agentUser.getNickname() : "代理人";
+                        String openid = getUserOpenid(agentUid);
+                        WechatProfitSharingRecord record = buildRecord(
+                                merchantOrder, platOrder, merchant,
+                                agentUid, agentName,
+                                openid, RECEIVER_AGENT,
+                                agentAmount, agentRate, sharingPool, "代理佣金"
+                        );
+                        records.add(record);
+                        totalShared = totalShared.add(agentAmount);
+                    }
+                }
+            }
+        }
+
+        // ========== 3. 锁客分润 = 分账池 × 锁客比例%(lockedMerchant.skzk%) ==========
+        // 仅当消费店 ≠ 锁客店时才分。消费就在锁客店则锁客分润=0
+        // [需审核]
+        if (ObjectUtil.isNotNull(buyer.getLockedMerchantId()) && buyer.getLockedMerchantId() > 0) {
+            Integer lockedMerId = buyer.getLockedMerchantId();
+            // 关键判断: 消费店 ≠ 锁客店
+            if (!lockedMerId.equals(merId)) {
+                Merchant lockedMerchant = merchantService.getByIdException(lockedMerId);
+                BigDecimal skzk = Optional.ofNullable(lockedMerchant.getSkzk()).orElse(BigDecimal.ZERO);
+                if (skzk.compareTo(BigDecimal.ZERO) > 0) {
+                    BigDecimal lockAmount = sharingPool.multiply(
+                            skzk.divide(HUNDRED, 4, RoundingMode.HALF_UP)
+                    ).setScale(2, RoundingMode.DOWN);
+
+                    if (lockAmount.compareTo(MIN_SHARING_AMOUNT) >= 0) {
+                        String openid = getMerchantAdminOpenid(lockedMerchant);
+                        WechatProfitSharingRecord record = buildRecord(
+                                merchantOrder, platOrder, merchant,
+                                lockedMerchant.getAdminId(), lockedMerchant.getName(),
+                                openid, RECEIVER_LOCKED_MERCHANT,
+                                lockAmount, skzk, sharingPool, "锁客商家分润"
+                        );
+                        records.add(record);
+                        totalShared = totalShared.add(lockAmount);
+                    }
+                }
+            } else {
+                logger.info("订单 {} 消费店=锁客店(merId={})，锁客分润=0", merchantOrder.getOrderNo(), merId);
+            }
+        }
+
+        // ========== 4. 平台 = 分账池 - 以上各方总和 ==========
+        // [需审核]
+        BigDecimal platformAmount = sharingPool.subtract(totalShared);
+
+        // [需审核] 校验: 分润总额不得超过分账池
+        if (totalShared.compareTo(sharingPool) > 0) {
+            logger.error("分账异常: 订单 {} 分润总额({})超过分账池({})，放弃分账",
+                    merchantOrder.getOrderNo(), totalShared, sharingPool);
+            throw new CrmebException("分账计算异常: 分润总额超过分账池");
         }
 
         if (platformAmount.compareTo(MIN_SHARING_AMOUNT) >= 0) {
             BigDecimal platformRate = BigDecimal.ZERO;
-            if (shareableAmount.compareTo(BigDecimal.ZERO) > 0) {
-                platformRate = platformAmount.multiply(new BigDecimal("100"))
-                        .divide(shareableAmount, 2, RoundingMode.HALF_UP);
+            if (sharingPool.compareTo(BigDecimal.ZERO) > 0) {
+                platformRate = platformAmount.multiply(HUNDRED)
+                        .divide(sharingPool, 2, RoundingMode.HALF_UP);
             }
-            // 平台分润记录，openid暂留空（平台账号在定时任务执行时从配置获取）
             WechatProfitSharingRecord record = buildRecord(
                     merchantOrder, platOrder, merchant,
                     null, "平台",
                     null, RECEIVER_PLATFORM,
-                    platformAmount, platformRate, shareableAmount, "平台分账收入"
+                    platformAmount, platformRate, sharingPool, "平台分账收入"
             );
             records.add(record);
         }
@@ -244,10 +301,8 @@ public class LqqProfitSharingServiceImpl implements LqqProfitSharingService {
         // 保存分账记录
         if (CollUtil.isNotEmpty(records)) {
             recordService.saveBatch(records);
-            logger.info("订单 {} 生成 {} 条分账记录, 总分账金额: {}",
-                    merchantOrder.getOrderNo(), records.size(),
-                    records.stream().map(WechatProfitSharingRecord::getAmount)
-                            .reduce(BigDecimal.ZERO, BigDecimal::add));
+            logger.info("订单 {} 生成 {} 条分账记录, 分账池={}, 各方总分={}",
+                    merchantOrder.getOrderNo(), records.size(), sharingPool, totalShared);
         }
     }
 
@@ -263,33 +318,48 @@ public class LqqProfitSharingServiceImpl implements LqqProfitSharingService {
      */
     @Override
     public void executePendingProfitSharing() {
-        List<WechatProfitSharingRecord> pendingRecords = recordService.getPendingRecords(100);
-        if (CollUtil.isEmpty(pendingRecords)) {
+        // [LQQ-迁移] Redis 分布式锁，防止多实例重复执行分账
+        Boolean locked = redisUtil.getRedisTemplate().opsForValue()
+                .setIfAbsent(LOCK_KEY_EXECUTE, "1", LOCK_EXPIRE_SECONDS, TimeUnit.SECONDS);
+        if (!Boolean.TRUE.equals(locked)) {
+            logger.info("分账任务已有其他实例在执行，本次跳过");
             return;
         }
 
-        // 按订单号分组
-        Map<String, List<WechatProfitSharingRecord>> orderGroups = pendingRecords.stream()
-                .collect(Collectors.groupingBy(WechatProfitSharingRecord::getOrderNo));
-
-        for (Map.Entry<String, List<WechatProfitSharingRecord>> entry : orderGroups.entrySet()) {
-            String orderNo = entry.getKey();
-            List<WechatProfitSharingRecord> records = entry.getValue();
-
-            try {
-                executeProfitSharingForOrder(orderNo, records);
-            } catch (Exception e) {
-                logger.error("订单 {} 分账执行异常", orderNo, e);
-                // 标记该批次记录为失败
-                for (WechatProfitSharingRecord record : records) {
-                    record.setStatus(STATUS_FAILED);
-                    record.setFailReason("分账执行异常: " + e.getMessage());
-                    record.setUpdateTime(new Date());
-                }
-                recordService.updateBatchById(records);
+        try {
+            List<WechatProfitSharingRecord> pendingRecords = recordService.getPendingRecords(100);
+            if (CollUtil.isEmpty(pendingRecords)) {
+                return;
             }
+
+            // 按订单号分组
+            Map<String, List<WechatProfitSharingRecord>> orderGroups = pendingRecords.stream()
+                    .collect(Collectors.groupingBy(WechatProfitSharingRecord::getOrderNo));
+
+            for (Map.Entry<String, List<WechatProfitSharingRecord>> entry : orderGroups.entrySet()) {
+                String orderNo = entry.getKey();
+                List<WechatProfitSharingRecord> records = entry.getValue();
+
+                try {
+                    executeProfitSharingForOrder(orderNo, records);
+                } catch (Exception e) {
+                    logger.error("订单 {} 分账执行异常", orderNo, e);
+                    // 标记该批次记录为失败
+                    for (WechatProfitSharingRecord record : records) {
+                        record.setStatus(STATUS_FAILED);
+                        record.setFailReason("分账执行异常: " + e.getMessage());
+                        record.setUpdateTime(new Date());
+                    }
+                    recordService.updateBatchById(records);
+                }
+            }
+        } finally {
+            redisUtil.delete(LOCK_KEY_EXECUTE);
         }
     }
+
+    // TODO: [LQQ-迁移] 退款分账回退 — 订单退款时需调用微信分账回退API，将已分账金额退回
+    // 后续迭代实现: 监听退款事件 → 查询该订单的分账记录 → 调用profitSharingReturn API → 更新记录状态
 
     /**
      * 对指定订单执行分账解冻(完结)
@@ -325,6 +395,94 @@ public class LqqProfitSharingServiceImpl implements LqqProfitSharingService {
     }
 
     // ==================== 私有方法 ====================
+
+    /**
+     * 获取首单系数(可配置)
+     * 从 SystemConfig 读取 lqq_first_order_coefficient，默认 1.5
+     * [需审核]
+     */
+    private BigDecimal getFirstOrderCoefficient() {
+        String value = systemConfigService.getValueByKey(CONFIG_FIRST_ORDER_COEFFICIENT);
+        if (StrUtil.isNotBlank(value)) {
+            try {
+                BigDecimal coefficient = new BigDecimal(value);
+                if (coefficient.compareTo(BigDecimal.ZERO) > 0) {
+                    return coefficient;
+                }
+            } catch (NumberFormatException e) {
+                logger.warn("首单系数配置格式错误: {}", value);
+            }
+        }
+        return new BigDecimal("1.5"); // 默认1.5倍
+    }
+
+    /**
+     * 获取裂变佣金比例(%)
+     * 从 SystemConfig 读取 lqq_referral_commission_rate，默认 5%
+     * [需审核]
+     */
+    private BigDecimal getReferralCommissionRate() {
+        String value = systemConfigService.getValueByKey(CONFIG_REFERRAL_RATE);
+        if (StrUtil.isNotBlank(value)) {
+            try {
+                BigDecimal rate = new BigDecimal(value);
+                if (rate.compareTo(BigDecimal.ZERO) >= 0 && rate.compareTo(HUNDRED) <= 0) {
+                    return rate;
+                }
+            } catch (NumberFormatException e) {
+                logger.warn("裂变佣金比例配置格式错误: {}", value);
+            }
+        }
+        return new BigDecimal("5"); // 默认5%
+    }
+
+    /**
+     * 计算冻结截止时间 = 当前时间 + 冻结天数
+     * 冻结天数从 SystemConfig 读取 lqq_commission_freeze_days，默认 3 天
+     */
+    private Date calcFrozenUntil() {
+        int freezeDays = DEFAULT_FREEZE_DAYS;
+        String value = systemConfigService.getValueByKey(CONFIG_FREEZE_DAYS);
+        if (StrUtil.isNotBlank(value)) {
+            try {
+                int days = Integer.parseInt(value);
+                if (days >= 0) {
+                    freezeDays = days;
+                }
+            } catch (NumberFormatException e) {
+                logger.warn("冻结天数配置格式错误: {}", value);
+            }
+        }
+        Calendar cal = Calendar.getInstance();
+        cal.add(Calendar.DAY_OF_MONTH, freezeDays);
+        return cal.getTime();
+    }
+
+    /**
+     * 判断用户是否在某个推广员的粉丝链上
+     * 向上遍历 spreadUid 链（最多5层），判断是否包含目标用户
+     */
+    private boolean isInSpreadChain(User buyer, Integer targetUid) {
+        if (ObjectUtil.isNull(buyer) || ObjectUtil.isNull(targetUid)) {
+            return false;
+        }
+        Integer currentSpreadUid = buyer.getSpreadUid();
+        int maxDepth = 5; // 防止循环引用
+        for (int i = 0; i < maxDepth; i++) {
+            if (ObjectUtil.isNull(currentSpreadUid) || currentSpreadUid <= 0) {
+                return false;
+            }
+            if (currentSpreadUid.equals(targetUid)) {
+                return true;
+            }
+            User parent = userService.getById(currentSpreadUid);
+            if (ObjectUtil.isNull(parent)) {
+                return false;
+            }
+            currentSpreadUid = parent.getSpreadUid();
+        }
+        return false;
+    }
 
     /**
      * 对单个订单执行微信分账
@@ -402,7 +560,7 @@ public class LqqProfitSharingServiceImpl implements LqqProfitSharingService {
                     JSONObject receiver = new JSONObject();
                     receiver.put("type", "PERSONAL_SUB_OPENID");
                     receiver.put("account", r.getReceiverOpenid());
-                    receiver.put("amount", r.getAmount().multiply(new BigDecimal("100")).intValue());
+                    receiver.put("amount", r.getAmount().multiply(HUNDRED).intValue());
                     receiver.put("description", StrUtil.isNotBlank(r.getDescription()) ? r.getDescription() : "合作伙伴分润");
                     receiversArray.add(receiver);
                 }
@@ -415,19 +573,22 @@ public class LqqProfitSharingServiceImpl implements LqqProfitSharingService {
                 ProfitSharingResult psResult = profitSharingService.profitSharing(psRequest);
                 logger.info("订单 {} 分账执行成功: {}", orderNo, JSON.toJSONString(psResult));
 
-                // 更新分账记录状态
+                // 更新分账记录状态 + 设置冻结截止时间
+                Date frozenUntil = calcFrozenUntil();
                 for (WechatProfitSharingRecord record : toShare) {
                     record.setStatus(STATUS_SUCCESS);
                     record.setProfitSharingOrderNo(psOrderNo);
+                    record.setFrozenUntil(frozenUntil);
                     record.setUpdateTime(new Date());
                 }
             }
 
-            // 3. 平台分润记录直接标记成功（平台金额在分账解冻后归属平台）
+            // 3. 平台分润记录直接标记成功（平台不需要佣金解冻）
             validRecords.stream()
                     .filter(r -> RECEIVER_PLATFORM.equals(r.getReceiverType()) && r.getStatus() == STATUS_PENDING)
                     .forEach(r -> {
                         r.setStatus(STATUS_SUCCESS);
+                        r.setIsUnfrozen(1); // 平台无需解冻流程
                         r.setUpdateTime(new Date());
                     });
 
@@ -445,9 +606,9 @@ public class LqqProfitSharingServiceImpl implements LqqProfitSharingService {
         recordService.updateBatchById(records);
 
         // 4. 分账完成后执行解冻
-        boolean allSuccess = records.stream()
+        boolean allDone = records.stream()
                 .allMatch(r -> r.getStatus() == STATUS_SUCCESS || r.getStatus() == STATUS_FAILED);
-        if (allSuccess) {
+        if (allDone) {
             unfreezeOrder(orderNo);
         }
     }
@@ -459,7 +620,6 @@ public class LqqProfitSharingServiceImpl implements LqqProfitSharingService {
         if (ObjectUtil.isNull(merchant.getAdminId()) || merchant.getAdminId() <= 0) {
             return null;
         }
-        // 商户管理员通过adminId关联到用户
         return getUserOpenid(merchant.getAdminId());
     }
 
@@ -503,6 +663,7 @@ public class LqqProfitSharingServiceImpl implements LqqProfitSharingService {
         record.setStatus(STATUS_PENDING);
         record.setSubMchId(merchant.getWxSubMchId());
         record.setServiceMchId(merchant.getWxServiceMchId());
+        record.setIsUnfrozen(0);
         record.setCreateTime(new Date());
         record.setUpdateTime(new Date());
         return record;
