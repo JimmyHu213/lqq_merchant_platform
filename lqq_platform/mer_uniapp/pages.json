@@ -421,6 +421,24 @@
 							// #endif
 						}
 					}
+				},
+				{
+					"path": "coupon_transfer/index",
+					"style": {
+						"navigationBarTitleText": "优惠券转赠"
+					}
+				},
+				{
+					"path": "locked_merchant/index",
+					"style": {
+						"navigationBarTitleText": "我的商铺"
+					}
+				},
+				{
+					"path": "promoter_center/index",
+					"style": {
+						"navigationBarTitleText": "推广员中心"
+					}
 				}
 			]
 		},
@@ -559,6 +577,12 @@
 						}
 					}
 
+				},
+				{
+					"path": "nearby/index",
+					"style": {
+						"navigationBarTitleText": "附近商铺"
+					}
 				}
 			]
 		},
@@ -1241,6 +1265,24 @@
 					"style": {
 						"navigationBarTitleText": "预约信息",
 						"navigationStyle": "custom"
+					}
+				},
+				{
+					"path": "lottery_list/index",
+					"style": {
+						"navigationBarTitleText": "抽奖活动"
+					}
+				},
+				{
+					"path": "lottery_detail/index",
+					"style": {
+						"navigationBarTitleText": "活动详情"
+					}
+				},
+				{
+					"path": "lottery_records/index",
+					"style": {
+						"navigationBarTitleText": "抽奖记录"
 					}
 				}
 			]

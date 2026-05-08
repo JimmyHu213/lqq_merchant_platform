@@ -154,6 +154,32 @@
 								<!-- #endif -->
 							</view>
 						</view>
+						<!-- [LQQ-迁移] 溜圈圈特色功能 -->
+						<view class="user-menus mt20 borRadius14">
+							<view class="menu-title">溜圈圈</view>
+							<view class="list-box">
+								<view class="item" @click="menusTap('/pages/users/locked_merchant/index')">
+									<text class="iconfont icon-dianpu lqq-icon"></text>
+									<text>我的商铺</text>
+								</view>
+								<view class="item" @click="menusTap('/pages/merchant/nearby/index')">
+									<text class="iconfont icon-weizhi lqq-icon"></text>
+									<text>附近商铺</text>
+								</view>
+								<view class="item" @click="menusTap('/pages/activity/lottery_list/index')">
+									<text class="iconfont icon-choujiang lqq-icon"></text>
+									<text>抽奖活动</text>
+								</view>
+								<view class="item" @click="menusTap('/pages/activity/lottery_records/index')">
+									<text class="iconfont icon-jilu lqq-icon"></text>
+									<text>抽奖记录</text>
+								</view>
+								<view class="item" @click="menusTap('/pages/users/promoter_center/index')">
+									<text class="iconfont icon-tuiguang lqq-icon"></text>
+									<text>推广员</text>
+								</view>
+							</view>
+						</view>
 						<!-- 商家管理 -->
 						<view class="user-menus mt20 borRadius14" v-if="isEmployee">
 							<view class="menu-title">店铺管理</view>
@@ -646,6 +672,14 @@
 </script>
 
 <style lang="scss" scoped>
+	// [LQQ-迁移] 溜圈圈功能入口图标样式
+	.lqq-icon {
+		font-size: 48rpx;
+		@include main_color(theme);
+		display: block;
+		margin-bottom: 6rpx;
+	}
+
 	.vipicon {
 		background-size: 100% 100%;
 	}
