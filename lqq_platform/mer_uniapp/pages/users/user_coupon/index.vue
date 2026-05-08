@@ -37,6 +37,8 @@
 								<span v-show="item.validStr==='overdue'">该优惠券已失效无法使用</span>
 								<span v-show="item.validStr==='unusable'">该优惠券已使用</span>
 							</view>
+							<!-- [LQQ-迁移] 优惠券转赠按钮 -->
+							<view class="transfer-btn" v-if="navOn === 'usable' && item.validStr==='usable'" @click.stop="goTransfer(item)">转赠</view>
 							<span class="iconfont"
 								:class="{'icon-ic_yilingqu':item.validStr==='usable'||item.validStr==='notStart',
 								'icon-yishiyong':item.validStr==='unusable',
@@ -120,6 +122,12 @@
 				if (this.navOn === 'usable') {
           this.goUseCouponPro(item, 2, true)
 				}
+			},
+			// [LQQ-迁移] 优惠券转赠
+			goTransfer(item) {
+				uni.navigateTo({
+					url: `/pages/users/coupon_transfer/index?couponUserId=${item.id}&name=${encodeURIComponent(item.name)}&money=${item.money}&minPrice=${item.minPrice}`
+				});
 			},
 			onNav: function(type) {
 				this.navOn = type;
@@ -246,6 +254,16 @@
 		border-top: 1px solid #f0f0f0;
 	}
 
+	// [LQQ-迁移] 转赠按钮样式
+	.transfer-btn {
+		font-size: 22rpx;
+		padding: 4rpx 16rpx;
+		border-radius: 16rpx;
+		@include main_color(theme);
+		@include coupons_border_color(theme);
+		margin-right: 12rpx;
+		z-index: 2;
+	}
 	.bg-color-check {
 		@include main_color(theme);
 		@include coupons_border_color(theme);

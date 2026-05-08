@@ -30,6 +30,8 @@ import marketingRouter from './modules/marketing';
 import staffRouter from './modules/staff';
 import pageDiyRouter from './modules/pageDiy';
 import memberRouter from './modules/member';
+// [LQQ-迁移] 溜圈圈功能路由
+import lqqRouter from './modules/lqq';
 /**
  * Note: sub-menu only appear when route children.length >= 1
  * Detail see: https://panjiachen.github.io/vue-element-admin-site/guide/essentials/router-and-nav.html
@@ -83,6 +85,8 @@ export const constantRoutes = [
   pageDiyRouter,
   // 会员
   memberRouter,
+  // [LQQ-迁移] 溜圈圈
+  lqqRouter,
   {
     path: '/404',
     component: () => import('@/views/error-page/404'),

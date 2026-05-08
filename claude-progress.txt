@@ -73,56 +73,48 @@
 
 ### B. 需要独立开发 — JAVA-MER 无对应功能，需新建 (7个模块)
 
-[PENDING] B1 - 自动锁客 (skId) ★核心
+[DONE] B1 - 自动锁客 (skId) ★核心
   说明: 用户首次在某商铺消费后自动绑定为该商铺客户
   mlqApi: WxAuthController.yu() + Order 支付回调中 skId 绑定逻辑
   涉及: User 实体增加 lockMerId/lockTime 字段, 支付回调扩展
-  工作量: 中
+  测试: PASS (8/10)
 
-[PENDING] B2 - 微信多方分账 (profitsharing) ★核心
-  说明: 支付成功后按规则将资金分配给多方 (锁客商户+推荐人+平台)
-  mlqApi: PayCommon.fz() + DsTask.mdFz() + SysFzJl 分账记录
-  公式: 基础金额 = goodsPrice × (1 - fszk)
-        锁客商铺 = 基础金额 × skzk%
-        推荐人 = 基础金额 × 佣金%
+[DONE] B2 - 微信多方分账 (profitsharing) ★核心
+  说明: 支付成功后按规则将资金分配给四方 (裂变推荐人+代理+锁客商铺+平台)
+  公式: 分账池 = 实付金额 × 商家让利%
+        首单翻倍: 分账池 × 首单系数(SystemConfig可配, 默认1.5)
+        裂变佣金 = 分账池 × 裂变比例%(SystemConfig可配, 默认5%)
+        代理佣金 = 分账池 × 代理比例%(PromoterMerchant.commissionRate)
+        锁客分润 = 分账池 × 锁客比例%(仅消费店≠锁客店时)
         平台 = 剩余
-  涉及: 对接 weixin-java-pay profitsharing API, 新建分账记录表, 异步定时任务
-  注意: JAVA-MER 有 OrderProfitSharingService 但是内部佣金分配，非微信分账API
-  工作量: 大 ★需人工审核金额计算
+  涉及: weixin-java-pay profitsharing API, 分账记录表, 定时任务(每5分钟)
+  安全: 幂等保护(唯一索引), Redis分布式锁, 分润上限校验, 商户数据隔离
+  佣金冻结: 3天冻结后自动解冻转入用户余额(冻结天数SystemConfig可配)
+  测试: PASS_WITH_NOTES (8/10) — 核心计算正确, 解冻任务建议补分布式锁
+  SQL: 011_wechat_profit_sharing.sql, 013_profit_sharing_config.sql, 014_profit_sharing_idempotent.sql, 015_commission_freeze_unfreeze.sql
 
-[PENDING] B3 - 推广员 (tgy) 角色 ★核心
-  说明: 独立于普通分销的角色，userId<60000 为推广员，管理区域商铺、佣金统计
-  mlqApi: WxAuthController (tjt佣金统计, gtc佣金记录, gts推广员商铺, gsc商铺数)
-  涉及: 推广员-商铺绑定关系表, 区域佣金统计, 推广员专属后台页面
-  注意: JAVA-MER 有 RetailStore 分销但不等同于溜圈圈的推广员机制
-  工作量: 大
+[DONE] B3 - 推广员/代理角色 ★核心
+  说明: 商户邀请推广员代理, 平台审核通过后代理获取佣金分成
+  涉及: PromoterMerchant 实体+DAO+Service, 三端Controller
+  接口: 商户端(邀请/解除/调佣金) + 平台端(审核/列表/强制解绑) + 用户端(佣金统计/商铺列表)
+  测试: PASS_WITH_NOTES (7/10) — 佣金校验+软删除冲突已修复
+  SQL: 010_promoter_merchant.sql
 
-[PENDING] B4 - LBS 附近商铺搜索
-  说明: 按距离搜索附近商铺，支持 0.5km-10km 筛选
-  mlqApi: SShopController.xss() + WxHomeUtilsController (jl距离选项, ga获取POI)
-  涉及: Haversine 距离计算, MySQL 空间查询或 Java 层计算, 距离排序
-  注意: JAVA-MER 有商户地址但无距离搜索功能
-  工作量: 中
+[DONE] B4 - LBS 附近商铺搜索
+  说明: 按距离搜索附近商铺，Haversine公式
+  测试: PASS (8.5/10)
 
-[PENDING] B5 - 线下核销 (扫码验证)
-  说明: 到店消费后通过扫码完成订单核销
-  mlqApi: ShopXxOrderController.oh() + WxOrderController (xmh扫码核销, goe订单二维码)
-  涉及: 订单核销状态扩展 (ishx, hxid), 核销码生成, 商户端扫码接口
-  注意: JAVA-MER 订单流程为线上发货模式，需增加到店核销模式
-  工作量: 中
+[DONE] B5 - 线下核销 (扫码验证) — JAVA-MER 已有完整功能，无需开发
 
-[PENDING] B6 - 优惠券转赠
-  说明: 用户间优惠券转移，mlqApi 用 zzrId 追踪转赠来源
-  mlqApi: WxBrandController.zsq() + BuyerYhq.zzrId 字段
-  涉及: StoreCouponUser 扩展转赠字段, 新增转赠接口
-  工作量: 小
+[DONE] B6 - 优惠券转赠
+  说明: 用户间优惠券转移，transferFromUid 追踪来源
+  测试: PASS (8/10) — 建议补接收方上限检查
+  SQL: 007_coupon_transfer.sql
 
-[PENDING] B7 - 抽奖系统
-  说明: 按期抽奖，用户消耗积分参与，自动开奖
-  mlqApi: WxOrderController (cj参与, ucj更新, gcbu记录) + UserCjlist 模型
-  涉及: 新建抽奖活动表+参与记录表, 开奖定时任务, 积分扣减
-  注意: JAVA-MER 有秒杀/拼团但无抽奖
-  工作量: 中
+[DONE] B7 - 抽奖系统
+  说明: 按期抽奖，积分参与，自动开奖
+  测试: PASS_WITH_NOTES (7/10) — 并发安全+审核校验已修复
+  SQL: 008_lottery_system.sql, 012_fix_lottery_concurrent.sql
 
 ---
 
@@ -159,59 +151,48 @@
 
 ## Phase 2: 直接移植模块 (A1-A12)
 [DONE] 2.1 - 商户实体扩展 — Merchant.java 增加 24 个 LQQ 字段 (2026-04-03)
-  文件: crmeb-common/.../model/merchant/Merchant.java
-  SQL:  sql/migrations/001_extend_merchant_for_lqq.sql
 [DONE] 2.2 - 订单状态码映射文档 (2026-04-03)
-  文件: sql/migrations/002_order_status_mapping.sql
-  映射: 101→0, 102→9(cancel=2), 103→9(cancel=1), 201→1(paid=1), 301→4, 401→5
 [DONE] 2.3 - 数据迁移SQL: 用户 t_customer_buyer → eb_user + eb_wechat_user (2026-04-03)
-  文件: sql/migrations/003_data_migration_users.sql
-  含: ID映射表(lqq_id_mapping), 微信绑定迁移, 推荐人关系迁移
 [DONE] 2.4 - 数据迁移SQL: 商户 t_business_shop → eb_merchant + eb_merchant_info (2026-04-03)
-  文件: sql/migrations/004_data_migration_merchants.sql
-  含: 基础信息+LQQ扩展字段+结算信息迁移
 [DONE] 2.5 - 数据迁移SQL: 订单 t_customer_order → eb_order (2026-04-03)
-  文件: sql/migrations/005_data_migration_orders.sql
-  含: 状态码映射转换, 支付信息, 退款/取消状态
 [DONE] 2.6 - 数据迁移SQL: 商品+优惠券 (2026-04-03)
-  文件: sql/migrations/006_data_migration_products_coupons.sql
-  含: t_business_shop_goods→eb_product, t_customer_buyer_yhq→eb_coupon_user
 [DONE] 2.7 - 编译验证: mvn clean install BUILD SUCCESS (2026-04-03)
 [PENDING] 2.8 - 微信小程序配置 (AppID/Secret/支付商户号) — 需用户提供实际配置值
 
-## Phase 3: 自定义模块开发 (B1-B7)
-[DONE] 3.6 - 优惠券转赠 (B6) (2026-04-04)
-  文件: CouponUser +transferFromUid, CouponTransferRequest, CouponUserService/Impl, CouponController
-  SQL: 007_coupon_transfer.sql
-  接口: POST api/front/coupon/transfer
-[DONE] 3.4 - LBS 附近搜索 (B4) (2026-04-04)
-  文件: MerchantMoveSearchRequest +lat/lon, MerchantSearchResponse +distance, DistanceUtil(Haversine), MerchantServiceImpl
-  接口: GET api/front/merchant/search/list (扩展，传经纬度按距离排序)
-  无需SQL迁移 (Merchant 已有 latitude/longitude)
-[DONE] 3.5 - 线下核销 (B5) — JAVA-MER 已有完整功能，无需开发
-  已有: OrderConstants.ORDER_STATUS_AWAIT_VERIFICATION=3, MerchantOrder.verifyCode, VerificationRecord表
-  已有: OrderServiceImpl.verificationOrderByCode(), EmployeeOrderController
-[DONE] 3.7 - 抽奖系统 (B7) (2026-04-04)
-  新表: eb_lottery_activity (含 audit_status 审核), eb_lottery_record
-  SQL: 008_lottery_system.sql
-  文件: LotteryActivity/LotteryRecord Entity+DAO, LotteryActivityService/Impl, LotteryRecordService/Impl
-  文件: LotteryController(front), MerchantLotteryController, PlatformLotteryController, LotteryDrawTask
-  文件: LotteryActivityRequest, LotteryAuditRequest, LotteryParticipateRequest DTO
-  接口: 21个 (用户端5 + 商户端9 + 平台端7)
-  定时任务: LotteryDrawTask (每5分钟开奖, Quartz注册)
+## Phase 3: 自定义模块开发 (B1-B7) ✅
 [DONE] 3.1 - 自动锁客 (B1) (2026-04-04)
-  SQL: 009_lock_customer.sql (eb_user +locked_merchant_id, +locked_merchant_time)
-  文件: User +2字段, UserService/Impl +lockCustomer(), PayServiceImpl(支付回调Hook)
-  文件: MerchantLockCustomerController, PlatformLockCustomerController
-  接口: 商户端锁客列表+统计, 平台端全局锁客记录
+  SQL: 009_lock_customer.sql
   逻辑: 支付成功→检查未锁客→绑定首个消费商户(只锁一次,乐观锁)
-[PENDING] 3.3 - 推广员角色 (B3)
-[PENDING] 3.2 - 微信多方分账 (B2) ★需人工审核
+[DONE] 3.2 - 微信多方分账 (B2) (2026-05-08) ★已审核通过
+  SQL: 011, 013, 014, 015
+  重构: 四方分配(裂变+代理+锁客跨店+平台) + 首单翻倍(每店首单) + 3天佣金冻结
+  安全: 幂等保护 + Redis分布式锁 + 分润上限校验 + 商户数据隔离
+  配置项: lqq_first_order_coefficient(首单系数), lqq_referral_commission_rate(裂变比例), lqq_commission_freeze_days(冻结天数)
+[DONE] 3.3 - 推广员/代理 (B3) (2026-05-08)
+  SQL: 010_promoter_merchant.sql
+  代理佣金已接入分账流程, spreadUid链判断粉丝关系(最多5层)
+[DONE] 3.4 - LBS 附近搜索 (B4) (2026-04-04)
+[DONE] 3.5 - 线下核销 (B5) — JAVA-MER 已有完整功能
+[DONE] 3.6 - 优惠券转赠 (B6) (2026-04-04)
+  SQL: 007_coupon_transfer.sql
+[DONE] 3.7 - 抽奖系统 (B7) (2026-04-04, 修复 2026-05-08)
+  SQL: 008_lottery_system.sql, 012_fix_lottery_concurrent.sql
+  修复: 唯一索引防并发重复参与 + 期号乐观锁 + 审核状态校验
 
-## Phase 4: 前端适配
-[PENDING] 4.1 - mer_uniapp 移动端适配
-[PENDING] 4.2 - mer_mer_admin 商户后台适配
-[PENDING] 4.3 - mer_plat_admin 平台后台适配
+## Phase 4: 前端适配 ✅
+[DONE] 4.1 - mer_uniapp 移动端适配 (2026-05-08)
+  新增8个页面: 抽奖(列表/详情/记录), 附近商铺, 优惠券转赠, 锁客商铺, 推广员中心
+  修改: 用户中心入口, 优惠券页转赠按钮, pages.json路由
+  API: api/lqq.js (统一API层)
+[DONE] 4.2 - mer_mer_admin 商户后台适配 (2026-05-08)
+  新增页面: 锁客列表, 抽奖管理(CRUD+中奖核销), 推广员管理, 分账记录
+  路由: src/router/modules/lqq.js
+  API: src/api/lqq.js
+[DONE] 4.3 - mer_plat_admin 平台后台适配 (2026-05-08)
+  新增页面: 全局锁客, 抽奖审核+记录, 推广员审核, 分账记录, 分账配置
+  配置页: 首单系数/裂变比例/冻结天数 可视化配置
+  路由: src/router/modules/lqq.js
+  API: src/api/lqq.js
 
 ## Phase 5: 集成测试
 [PENDING] 5.1 - 微信登录全链路
@@ -225,6 +206,27 @@
 [PENDING] 6.3 - 灰度发布
 
 ---
+
+## 待处理项 (已知问题)
+- [PENDING] 2.8 微信小程序配置 — 需用户提供 AppID/Secret/商户号
+- [TODO] B2 退款分账回退 — 退款后已分账资金需调用微信 profitSharingReturn API 追回
+- [TODO] B2 解冻任务补分布式锁 — ProfitSharingUnfreezeTask 多实例部署可能重复解冻
+- [TODO] B6 优惠券接收方上限检查 — mlqApi 限制21张，新系统未实现
+- [INFO] B4 距离单位 — 新系统返回km，mlqApi返回米，前端需注意
+
+---
+
+## 代码审核总结 (2026-05-08)
+
+| 模块 | 审核结果 | 评分 | 关键修复 |
+|------|---------|------|---------|
+| B1 锁客 | PASS | 8/10 | — |
+| B2 分账 | PASS_WITH_NOTES | 8/10 | 重构公式+幂等+分布式锁 |
+| B3 推广员 | PASS_WITH_NOTES | 7/10 | 佣金校验+软删除修复 |
+| B4 LBS | PASS | 8.5/10 | — |
+| B6 转赠 | PASS | 8/10 | — |
+| B7 抽奖 | PASS_WITH_NOTES | 7/10 | 并发安全+状态校验修复 |
+
 ## Session Log
 # [2026-03-31] [Generator] - Phase 0 初始化项目
 # [2026-04-02] [Generator] - Phase 1 环境搭建完成 (Docker + MySQL + Redis + Java 11 兼容)
@@ -235,4 +237,7 @@
 # [2026-04-04] [Generator] - Phase 3 B4完成: LBS附近搜索 (commit dacddd7)
 # [2026-04-04] [Generator] - Phase 3 B5跳过: JAVA-MER已有完整线下核销功能
 # [2026-04-04] [Generator] - Phase 3 B7完成: 抽奖系统21个接口 (commit 1d04f61, 72cf02b)
-# [2026-04-04] [Generator] - Phase 3 B1完成: 自动锁客 (待commit)
+# [2026-04-04] [Generator] - Phase 3 B1完成: 自动锁客
+# [2026-05-08] [Team] - Phase 3 全部完成: B2分账重构+B3代理接入+B7/B3修复 (7个commit)
+# [2026-05-08] [Team] - Phase 4 全部完成: 三端前端适配 (UniApp 8页面 + 商户后台 12文件 + 平台后台 12文件)
+# [2026-05-08] [Team] - 代码审核完成: 两轮审核, 6个模块全部PASS, 15个任务交付

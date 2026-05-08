@@ -4,6 +4,8 @@ import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
 
+import javax.validation.constraints.DecimalMax;
+import javax.validation.constraints.DecimalMin;
 import javax.validation.constraints.NotNull;
 import java.io.Serializable;
 import java.math.BigDecimal;
@@ -24,5 +26,7 @@ public class PromoterMerchantBindRequest implements Serializable {
 
     @ApiModelProperty(value = "代理佣金比例(%)", required = true)
     @NotNull(message = "佣金比例不能为空")
+    @DecimalMin(value = "0.01", message = "佣金比例不能小于0.01%")
+    @DecimalMax(value = "100.00", message = "佣金比例不能超过100%")
     private BigDecimal commissionRate;
 }

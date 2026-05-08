@@ -68,6 +68,22 @@ public class PromoterMerchantServiceImpl extends ServiceImpl<PromoterMerchantDao
             throw new CrmebException("已有待审核的邀请申请");
         }
 
+        // [LQQ-迁移] 检查是否有已软删除的记录（UNIQUE INDEX uk_mer_id 冲突）
+        // 如果存在已删除的记录，复用该记录而非插入新记录
+        PromoterMerchant deletedRecord = dao.selectOne(Wrappers.<PromoterMerchant>lambdaQuery()
+                .eq(PromoterMerchant::getMerId, merId)
+                .eq(PromoterMerchant::getIsDel, true));
+        if (ObjectUtil.isNotNull(deletedRecord)) {
+            deletedRecord.setUid(uid);
+            deletedRecord.setCommissionRate(commissionRate);
+            deletedRecord.setStatus(0);
+            deletedRecord.setAuditStatus(0);
+            deletedRecord.setAuditReason(null);
+            deletedRecord.setIsDel(false);
+            deletedRecord.setUpdateTime(DateUtil.date());
+            return updateById(deletedRecord);
+        }
+
         PromoterMerchant record = new PromoterMerchant();
         record.setUid(uid);
         record.setMerId(merId);

@@ -28,6 +28,8 @@ import operationRouter from './modules/operation';
 import merchant from './modules/merchant';
 import pagediy from '@/router/modules/pagediy';
 import areaRouter from './modules/area';
+// [LQQ-迁移] 溜圈圈功能路由
+import lqqRouter from './modules/lqq';
 /**
  * Note: sub-menu only appear when route children.length >= 1
  * Detail see: https://panjiachen.github.io/vue-element-admin-site/guide/essentials/router-and-nav.html
@@ -77,6 +79,8 @@ export const constantRoutes = [
   pagediy,
   // 圈层管理
   areaRouter,
+  // [LQQ-迁移] 溜圈圈
+  lqqRouter,
   {
     path: '/404',
     component: () => import('@/views/error-page/404'),

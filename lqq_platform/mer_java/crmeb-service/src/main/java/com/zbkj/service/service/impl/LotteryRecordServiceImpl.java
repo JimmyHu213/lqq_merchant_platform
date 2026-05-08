@@ -22,6 +22,7 @@ import com.zbkj.service.service.UserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -69,46 +70,39 @@ public class LotteryRecordServiceImpl extends ServiceImpl<LotteryRecordDao, Lott
             throw new CrmebException("积分不足，需要" + activity.getPointsCost() + "积分");
         }
 
-        // 4. 构建期号
-        String periodNumber = activityId + "-" + String.format("%06d", activity.getCurrentPeriod());
-
-        // 5. 检查当前期用户是否已参与
-        Integer userCount = dao.selectCount(Wrappers.<LotteryRecord>lambdaQuery()
-                .eq(LotteryRecord::getActivityId, activityId)
-                .eq(LotteryRecord::getUid, uid)
-                .eq(LotteryRecord::getPeriodNumber, periodNumber)
-                .isNull(LotteryRecord::getDrawTime));
-        if (userCount > 0) {
-            throw new CrmebException("本期已参与，请等待开奖");
-        }
-
-        // 6. 检查当前期是否已满，满了则进入下期
+        // 4. 获取当前期号，如果满了则推进到下期（最多重试一次）
+        // [LQQ-迁移] 期号推进统一由 advancePeriodIfFull 处理
+        String periodNumber = buildPeriodNumber(activityId, activity.getCurrentPeriod());
         Integer currentCount = getCurrentPeriodCount(activityId, periodNumber);
         if (currentCount >= activity.getParticipantThreshold()) {
-            // 当前期已满，递增期号
-            activity.setCurrentPeriod(activity.getCurrentPeriod() + 1);
-            lotteryActivityService.updateById(activity);
-            periodNumber = activityId + "-" + String.format("%06d", activity.getCurrentPeriod());
+            Integer newPeriod = advancePeriodIfFull(activityId, activity.getCurrentPeriod());
+            periodNumber = buildPeriodNumber(activityId, newPeriod);
         }
 
-        // 7. 创建参与记录 + 扣减积分（事务）
+        // 5. 创建参与记录 + 扣减积分（事务）
+        // [LQQ-迁移] 依赖 UNIQUE INDEX uk_activity_uid_period 防止并发重复参与
+        final Integer pointsCost = activity.getPointsCost();
         LotteryRecord record = new LotteryRecord();
         record.setActivityId(activityId);
         record.setMerId(activity.getMerId());
         record.setUid(uid);
         record.setPeriodNumber(periodNumber);
-        record.setPointsCost(activity.getPointsCost());
+        record.setPointsCost(pointsCost);
         record.setIsWinner(0);
         record.setIsRedeemed(0);
         record.setCreateTime(DateUtil.date());
 
-        Boolean result = transactionTemplate.execute(e -> {
-            save(record);
-            userService.updateIntegral(uid, activity.getPointsCost(), Constants.OPERATION_TYPE_SUBTRACT);
-            return Boolean.TRUE;
-        });
-
-        return result;
+        try {
+            Boolean result = transactionTemplate.execute(e -> {
+                save(record);
+                userService.updateIntegral(uid, pointsCost, Constants.OPERATION_TYPE_SUBTRACT);
+                return Boolean.TRUE;
+            });
+            return result;
+        } catch (DuplicateKeyException e) {
+            // 并发情况下唯一索引拦截重复参与
+            throw new CrmebException("本期已参与，请等待开奖");
+        }
     }
 
     @Override
@@ -129,6 +123,28 @@ public class LotteryRecordServiceImpl extends ServiceImpl<LotteryRecordDao, Lott
                 .eq(LotteryRecord::getPeriodNumber, periodNumber));
     }
 
+    /**
+     * [LQQ-迁移] 期号推进 — 唯一入口，使用乐观锁CAS防止竞态
+     * @return 推进后的新期号数字（如果CAS失败则重新读取最新值）
+     */
+    private Integer advancePeriodIfFull(Integer activityId, Integer expectedPeriod) {
+        boolean updated = lotteryActivityService.update(Wrappers.<LotteryActivity>lambdaUpdate()
+                .set(LotteryActivity::getCurrentPeriod, expectedPeriod + 1)
+                .set(LotteryActivity::getUpdateTime, DateUtil.date())
+                .eq(LotteryActivity::getId, activityId)
+                .eq(LotteryActivity::getCurrentPeriod, expectedPeriod));
+        if (updated) {
+            return expectedPeriod + 1;
+        }
+        // CAS失败，其他线程已推进，读取最新值
+        LotteryActivity latest = lotteryActivityService.getByIdException(activityId);
+        return latest.getCurrentPeriod();
+    }
+
+    private String buildPeriodNumber(Integer activityId, Integer period) {
+        return activityId + "-" + String.format("%06d", period);
+    }
+
     @Override
     public void executeDraw() {
         // 获取所有开启中的活动
@@ -144,56 +160,59 @@ public class LotteryRecordServiceImpl extends ServiceImpl<LotteryRecordDao, Lott
 
     /**
      * 对单个活动执行开奖
+     * [LQQ-迁移] 扫描所有已满但未开奖的期次，而非仅当前期
+     * 期号推进由 participate() 中的 advancePeriodIfFull() 统一负责
      */
     private void drawForActivity(LotteryActivity activity) {
-        String periodNumber = activity.getId() + "-" + String.format("%06d", activity.getCurrentPeriod());
+        // 扫描从第1期到当前期，找到已满且未开奖的期次
+        for (int period = 1; period <= activity.getCurrentPeriod(); period++) {
+            String periodNumber = buildPeriodNumber(activity.getId(), period);
 
-        // 查询当前期未开奖的参与记录
-        List<LotteryRecord> records = dao.selectList(Wrappers.<LotteryRecord>lambdaQuery()
-                .eq(LotteryRecord::getActivityId, activity.getId())
-                .eq(LotteryRecord::getPeriodNumber, periodNumber)
-                .isNull(LotteryRecord::getDrawTime));
+            // 查询该期未开奖的参与记录
+            List<LotteryRecord> records = dao.selectList(Wrappers.<LotteryRecord>lambdaQuery()
+                    .eq(LotteryRecord::getActivityId, activity.getId())
+                    .eq(LotteryRecord::getPeriodNumber, periodNumber)
+                    .isNull(LotteryRecord::getDrawTime));
 
-        // 人数不够，不开奖
-        if (records.size() < activity.getParticipantThreshold()) {
-            return;
-        }
-
-        logger.info("开奖: 活动={}, 期号={}, 参与人数={}", activity.getName(), periodNumber, records.size());
-
-        // 随机选取中奖者
-        int winnerCount = Math.min(activity.getWinnerCount(), records.size());
-        Collections.shuffle(records);
-        List<LotteryRecord> winners = records.subList(0, winnerCount);
-        Set<Integer> winnerIds = winners.stream().map(LotteryRecord::getId).collect(Collectors.toSet());
-
-        Date now = DateUtil.date();
-
-        transactionTemplate.execute(e -> {
-            // 标记中奖者
-            if (!winnerIds.isEmpty()) {
-                LambdaUpdateWrapper<LotteryRecord> winnerWrapper = Wrappers.lambdaUpdate();
-                winnerWrapper.set(LotteryRecord::getIsWinner, 1);
-                winnerWrapper.set(LotteryRecord::getDrawTime, now);
-                winnerWrapper.in(LotteryRecord::getId, winnerIds);
-                update(winnerWrapper);
+            // 人数不够，跳过
+            if (records.size() < activity.getParticipantThreshold()) {
+                continue;
             }
 
-            // 标记所有参与者的开奖时间
-            LambdaUpdateWrapper<LotteryRecord> allWrapper = Wrappers.lambdaUpdate();
-            allWrapper.set(LotteryRecord::getDrawTime, now);
-            allWrapper.eq(LotteryRecord::getActivityId, activity.getId());
-            allWrapper.eq(LotteryRecord::getPeriodNumber, periodNumber);
-            allWrapper.isNull(LotteryRecord::getDrawTime);
-            update(allWrapper);
+            logger.info("开奖: 活动={}, 期号={}, 参与人数={}", activity.getName(), periodNumber, records.size());
 
-            // 递增活动期号
-            activity.setCurrentPeriod(activity.getCurrentPeriod() + 1);
-            lotteryActivityService.updateById(activity);
-            return Boolean.TRUE;
-        });
+            // 随机选取中奖者
+            int winnerCount = Math.min(activity.getWinnerCount(), records.size());
+            Collections.shuffle(records);
+            List<LotteryRecord> winners = records.subList(0, winnerCount);
+            Set<Integer> winnerIds = winners.stream().map(LotteryRecord::getId).collect(Collectors.toSet());
 
-        logger.info("开奖完成: 活动={}, 中奖人数={}", activity.getName(), winnerIds.size());
+            Date now = DateUtil.date();
+            final String pn = periodNumber;
+
+            transactionTemplate.execute(e -> {
+                // 标记中奖者
+                if (!winnerIds.isEmpty()) {
+                    LambdaUpdateWrapper<LotteryRecord> winnerWrapper = Wrappers.lambdaUpdate();
+                    winnerWrapper.set(LotteryRecord::getIsWinner, 1);
+                    winnerWrapper.set(LotteryRecord::getDrawTime, now);
+                    winnerWrapper.in(LotteryRecord::getId, winnerIds);
+                    update(winnerWrapper);
+                }
+
+                // 标记未中奖参与者的开奖时间
+                LambdaUpdateWrapper<LotteryRecord> allWrapper = Wrappers.lambdaUpdate();
+                allWrapper.set(LotteryRecord::getDrawTime, now);
+                allWrapper.eq(LotteryRecord::getActivityId, activity.getId());
+                allWrapper.eq(LotteryRecord::getPeriodNumber, pn);
+                allWrapper.isNull(LotteryRecord::getDrawTime);
+                update(allWrapper);
+
+                return Boolean.TRUE;
+            });
+
+            logger.info("开奖完成: 活动={}, 期号={}, 中奖人数={}", activity.getName(), periodNumber, winnerIds.size());
+        }
     }
 
     @Override
