@@ -8,7 +8,9 @@ import com.zbkj.service.service.PromoterMerchantService;
 import com.zbkj.service.service.WechatProfitSharingRecordService;
 import com.zbkj.service.service.UserService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.extern.slf4j.Slf4j;
@@ -51,14 +53,15 @@ public class PromoterController {
     // [LQQ-迁移] 佣金明细列表：查询当前用户作为接收方的分账记录
     @ApiOperation(value = "我的佣金明细（分账记录）")
     @RequestMapping(value = "/my/commission/detail", method = RequestMethod.GET)
-    public CommonResult<List<WechatProfitSharingRecord>> commissionDetail(
+    public CommonResult<IPage<WechatProfitSharingRecord>> commissionDetail(
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "20") Integer limit) {
         Integer uid = userService.getUserIdException();
+        if (page < 1) page = 1;
+        if (limit > 1000) limit = 1000;
         LambdaQueryWrapper<WechatProfitSharingRecord> lqw = Wrappers.lambdaQuery();
         lqw.eq(WechatProfitSharingRecord::getReceiverUserId, uid);
         lqw.orderByDesc(WechatProfitSharingRecord::getCreateTime);
-        lqw.last(" limit " + ((page - 1) * limit) + "," + limit);
-        return CommonResult.success(wechatProfitSharingRecordService.list(lqw));
+        return CommonResult.success(wechatProfitSharingRecordService.page(new Page<>(page, limit), lqw));
     }
 }
