@@ -1,5 +1,6 @@
 package com.zbkj.admin.controller.merchant;
 
+import com.zbkj.common.exception.CrmebException;
 import com.zbkj.common.model.promoter.PromoterMerchant;
 import com.zbkj.common.request.PromoterMerchantBindRequest;
 import com.zbkj.common.response.OperationResponse;
@@ -59,6 +60,10 @@ public class MerchantPromoterController {
     @ApiOperation(value = "修改代理佣金比例")
     @RequestMapping(value = "/update/rate", method = RequestMethod.POST)
     public CommonResult<OperationResponse> updateRate(@RequestParam BigDecimal commissionRate) {
+        // [LQQ-迁移] 佣金比例范围校验
+        if (commissionRate.compareTo(new BigDecimal("0.01")) < 0 || commissionRate.compareTo(new BigDecimal("100.00")) > 0) {
+            throw new CrmebException("佣金比例必须在0.01%~100%之间");
+        }
         Integer merId = SecurityUtil.getLoginUserVo().getUser().getMerId();
         if (promoterMerchantService.updateCommissionRate(merId, commissionRate)) {
             return CommonResult.success(new OperationResponse("修改成功"));

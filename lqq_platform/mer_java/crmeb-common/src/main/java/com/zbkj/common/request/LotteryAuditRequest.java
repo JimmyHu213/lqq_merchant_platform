@@ -4,6 +4,8 @@ import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 import lombok.Data;
 
+import javax.validation.constraints.Max;
+import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 import java.io.Serializable;
 
@@ -23,6 +25,8 @@ public class LotteryAuditRequest implements Serializable {
 
     @ApiModelProperty(value = "审核结果: 1=通过, 2=拒绝", required = true)
     @NotNull(message = "审核结果不能为空")
+    @Min(value = 1, message = "审核结果只能为1(通过)或2(拒绝)")
+    @Max(value = 2, message = "审核结果只能为1(通过)或2(拒绝)")
     private Integer auditStatus;
 
     @ApiModelProperty(value = "拒绝原因（拒绝时必填）")

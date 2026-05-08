@@ -22,6 +22,7 @@ import com.zbkj.service.service.UserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -72,43 +73,49 @@ public class LotteryRecordServiceImpl extends ServiceImpl<LotteryRecordDao, Lott
         // 4. 构建期号
         String periodNumber = activityId + "-" + String.format("%06d", activity.getCurrentPeriod());
 
-        // 5. 检查当前期用户是否已参与
-        Integer userCount = dao.selectCount(Wrappers.<LotteryRecord>lambdaQuery()
-                .eq(LotteryRecord::getActivityId, activityId)
-                .eq(LotteryRecord::getUid, uid)
-                .eq(LotteryRecord::getPeriodNumber, periodNumber)
-                .isNull(LotteryRecord::getDrawTime));
-        if (userCount > 0) {
-            throw new CrmebException("本期已参与，请等待开奖");
-        }
-
-        // 6. 检查当前期是否已满，满了则进入下期
+        // 5. 检查当前期是否已满，满了则进入下期
+        // [LQQ-迁移] 使用乐观锁递增期号，防止竞态条件
         Integer currentCount = getCurrentPeriodCount(activityId, periodNumber);
         if (currentCount >= activity.getParticipantThreshold()) {
-            // 当前期已满，递增期号
-            activity.setCurrentPeriod(activity.getCurrentPeriod() + 1);
-            lotteryActivityService.updateById(activity);
-            periodNumber = activityId + "-" + String.format("%06d", activity.getCurrentPeriod());
+            Integer expectedPeriod = activity.getCurrentPeriod();
+            boolean updated = lotteryActivityService.update(Wrappers.<LotteryActivity>lambdaUpdate()
+                    .set(LotteryActivity::getCurrentPeriod, expectedPeriod + 1)
+                    .set(LotteryActivity::getUpdateTime, DateUtil.date())
+                    .eq(LotteryActivity::getId, activityId)
+                    .eq(LotteryActivity::getCurrentPeriod, expectedPeriod));
+            if (updated) {
+                periodNumber = activityId + "-" + String.format("%06d", expectedPeriod + 1);
+            } else {
+                // 其他线程已递增，重新读取最新期号
+                activity = lotteryActivityService.getByIdException(activityId);
+                periodNumber = activityId + "-" + String.format("%06d", activity.getCurrentPeriod());
+            }
         }
 
-        // 7. 创建参与记录 + 扣减积分（事务）
+        // 6. 创建参与记录 + 扣减积分（事务）
+        // [LQQ-迁移] 依赖 UNIQUE INDEX uk_activity_uid_period 防止并发重复参与
+        final Integer pointsCost = activity.getPointsCost();
         LotteryRecord record = new LotteryRecord();
         record.setActivityId(activityId);
         record.setMerId(activity.getMerId());
         record.setUid(uid);
         record.setPeriodNumber(periodNumber);
-        record.setPointsCost(activity.getPointsCost());
+        record.setPointsCost(pointsCost);
         record.setIsWinner(0);
         record.setIsRedeemed(0);
         record.setCreateTime(DateUtil.date());
 
-        Boolean result = transactionTemplate.execute(e -> {
-            save(record);
-            userService.updateIntegral(uid, activity.getPointsCost(), Constants.OPERATION_TYPE_SUBTRACT);
-            return Boolean.TRUE;
-        });
-
-        return result;
+        try {
+            Boolean result = transactionTemplate.execute(e -> {
+                save(record);
+                userService.updateIntegral(uid, pointsCost, Constants.OPERATION_TYPE_SUBTRACT);
+                return Boolean.TRUE;
+            });
+            return result;
+        } catch (DuplicateKeyException e) {
+            // 并发情况下唯一索引拦截重复参与
+            throw new CrmebException("本期已参与，请等待开奖");
+        }
     }
 
     @Override
@@ -187,9 +194,13 @@ public class LotteryRecordServiceImpl extends ServiceImpl<LotteryRecordDao, Lott
             allWrapper.isNull(LotteryRecord::getDrawTime);
             update(allWrapper);
 
-            // 递增活动期号
-            activity.setCurrentPeriod(activity.getCurrentPeriod() + 1);
-            lotteryActivityService.updateById(activity);
+            // [LQQ-迁移] 使用乐观锁递增期号，防止竞态条件
+            Integer expectedPeriod = activity.getCurrentPeriod();
+            lotteryActivityService.update(Wrappers.<LotteryActivity>lambdaUpdate()
+                    .set(LotteryActivity::getCurrentPeriod, expectedPeriod + 1)
+                    .set(LotteryActivity::getUpdateTime, DateUtil.date())
+                    .eq(LotteryActivity::getId, activity.getId())
+                    .eq(LotteryActivity::getCurrentPeriod, expectedPeriod));
             return Boolean.TRUE;
         });
 
